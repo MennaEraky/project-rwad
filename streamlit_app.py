@@ -23,8 +23,9 @@ def load_model_from_drive(file_id):
 
 # Preprocess the input data
 def preprocess_input(data):
-    # Create DataFrame with an index
-    input_df = pd.DataFrame(data, index=[0])  # Add an index to the DataFrame
+    input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
+    # One-Hot Encoding for categorical features
+    input_df = pd.get_dummies(input_df, drop_first=True)  # Convert categorical variables to dummy/indicator variables
     return input_df
 
 # Main Streamlit app
