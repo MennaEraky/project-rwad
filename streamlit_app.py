@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import pickle
 import gdown
 
@@ -22,7 +21,12 @@ def load_model_from_drive(file_id):
             # Load the model from the local file
             with open(output, 'rb') as file:
                 model = pickle.load(file)
-            return model
+            # Check if the model is an instance of RandomForestRegressor
+            if isinstance(model, RandomForestRegressor):
+                return model
+            else:
+                st.error("Loaded model is not a RandomForestRegressor.")
+                return None
         except Exception as e:
             st.error(f"Error loading the model: {str(e)}")
             return None
@@ -60,20 +64,16 @@ def main():
             input_data = preprocess_input(kilometres, fuel_consumption, doors, seats)
             
             try:
-                # Check if the model has the predict method
-                if hasattr(model, 'predict'):
-                    # Make the prediction
-                    prediction = model.predict(input_data)
-                    
-                    # Display the result
-                    st.subheader("Predicted Price:")
-                    st.write(f"${prediction[0]:,.2f}")
-                    
-                    # Visualize the result
-                    st.subheader("Price Visualization")
-                    st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
-                else:
-                    st.error("Loaded model does not have a predict method.")
+                # Make the prediction
+                prediction = model.predict(input_data)
+                
+                # Display the result
+                st.subheader("Predicted Price:")
+                st.write(f"${prediction[0]:,.2f}")
+                
+                # Visualize the result
+                st.subheader("Price Visualization")
+                st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
             except Exception as e:
                 st.error(f"Error making prediction: {str(e)}")
         else:
@@ -81,4 +81,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
