@@ -6,7 +6,7 @@ import requests
 
 # Function to download the model from Google Drive
 def download_model_from_drive(file_id):
-    url = f'https://drive.google.com/uc?export=download&id={19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK}'
+    url = f'https://drive.google.com/uc?export=download&id={file_id}'
     response = requests.get(url)
     return response.content
 
@@ -39,8 +39,9 @@ def main():
     
     # Button for prediction
     if st.button("Predict Price"):
-        # Replace 'your_drive_file_id' with the actual file ID from Google Drive
-        model = load_model_from_drive('your_drive_file_id')
+        # Correctly use the file ID as a string
+        file_id = '19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK'  # Replace this with your actual Google Drive file ID
+        model = load_model_from_drive(file_id)
         
         # Preprocess the user input
         input_data = preprocess_input(kilometres, fuel_consumption, doors, seats)
