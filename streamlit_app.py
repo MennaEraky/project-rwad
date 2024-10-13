@@ -2,16 +2,22 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import requests
+
+# Function to download the model from Google Drive
+def download_model_from_drive(file_id):
+    url = f'https://drive.google.com/uc?export=download&id={19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK}'
+    response = requests.get(url)
+    return response.content
 
 # Load the trained model
-def load_model(model_path):
-    with open(model_path, 'rb') as file:
-        model = pickle.load(file)
+def load_model_from_drive(file_id):
+    model_data = download_model_from_drive(file_id)
+    model = pickle.loads(model_data)
     return model
 
 # Preprocess the input data
 def preprocess_input(kilometres, fuel_consumption, doors, seats):
-    # Create a DataFrame with the input values
     input_df = pd.DataFrame({
         'Kilometres': [kilometres],
         'FuelConsumption': [fuel_consumption],
@@ -33,8 +39,8 @@ def main():
     
     # Button for prediction
     if st.button("Predict Price"):
-        # Load the model
-        model = load_model('vehicle_price_model.pkl')  # Replace with your actual model file path
+        # Replace 'your_drive_file_id' with the actual file ID from Google Drive
+        model = load_model_from_drive('your_drive_file_id')
         
         # Preprocess the user input
         input_data = preprocess_input(kilometres, fuel_consumption, doors, seats)
@@ -46,7 +52,7 @@ def main():
         st.subheader("Predicted Price:")
         st.write(f"${prediction[0]:,.2f}")
         
-        # Visualize the result (example: bar chart)
+        # Visualize the result
         st.subheader("Price Visualization")
         st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
 
