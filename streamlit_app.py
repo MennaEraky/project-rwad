@@ -22,11 +22,15 @@ def load_model_from_drive(file_id):
         return None
 
 # Preprocess the input data
-def preprocess_input(data):
+def preprocess_input(data, model):
     input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
-    # One-Hot Encoding for categorical features
-    input_df = pd.get_dummies(input_df, drop_first=True)  # Convert categorical variables to dummy/indicator variables
-    return input_df
+    # One-Hot Encoding for categorical features based on the training model's features
+    input_df_encoded = pd.get_dummies(input_df, drop_first=True)
+
+    # Reindex to ensure it matches the model's expected input
+    model_features = model.feature_names_in_  # Get the features used during training
+    input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
+    return input_df_encoded
 
 # Main Streamlit app
 def main():
@@ -66,7 +70,7 @@ def main():
                 'BodyType': body_type,
                 'Doors': doors
             }
-            input_df = preprocess_input(input_data)
+            input_df = preprocess_input(input_data, model)
 
             try:
                 # Make the prediction
