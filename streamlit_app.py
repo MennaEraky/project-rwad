@@ -80,9 +80,9 @@ def main():
                 st.subheader("Predicted Price:")
                 st.write(f"${prediction[0]:,.2f}")
 
-                # Visualize the result
-                st.subheader("Price Visualization")
-                st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+                # # Visualize the result
+                # st.subheader("Price Visualization")
+                # st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
             except Exception as e:
                 st.error(f"Error making prediction: {str(e)}")
         else:
