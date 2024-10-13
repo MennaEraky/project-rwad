@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 import gdown
+from sklearn.ensemble import RandomForestRegressor
 
 # Function to download the model using gdown
 def download_model_from_drive(file_id, output):
@@ -56,7 +57,7 @@ def main():
     
     # Button for prediction
     if st.button("Predict Price"):
-        file_id = '19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK'  # Replace this with your actual Google Drive file ID
+        file_id = '19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK'  # Replace with your actual Google Drive file ID
         model = load_model_from_drive(file_id)
         
         if model is not None:
