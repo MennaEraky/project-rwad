@@ -23,7 +23,8 @@ def load_model_from_drive(file_id):
 
 # Preprocess the input data
 def preprocess_input(data):
-    input_df = pd.DataFrame(data)
+    # Create DataFrame with an index
+    input_df = pd.DataFrame(data, index=[0])  # Add an index to the DataFrame
     return input_df
 
 # Main Streamlit app
