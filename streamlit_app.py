@@ -2,18 +2,23 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
-import requests
+import gdown
 
-# Function to download the model from Google Drive
-def download_model_from_drive(file_id):
-    url = f'https://drive.google.com/uc?export=download&id={file_id}'
-    response = requests.get(url)
-    return response.content
+# Function to download the model using gdown
+def download_model_from_drive(file_id, output):
+    # Use gdown to download the file correctly
+    url = f'https://drive.google.com/uc?id={file_id}'
+    gdown.download(url, output, quiet=False)
 
 # Load the trained model
 def load_model_from_drive(file_id):
-    model_data = download_model_from_drive(file_id)
-    model = pickle.loads(model_data)
+    # Define a local file name for the downloaded model
+    output = 'vehicle_price_model.pkl'
+    download_model_from_drive(file_id, output)
+    
+    # Load the model from the local file
+    with open(output, 'rb') as file:
+        model = pickle.load(file)
     return model
 
 # Preprocess the input data
