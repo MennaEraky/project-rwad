@@ -52,7 +52,6 @@ def main():
     
     # Button for prediction
     if st.button("Predict Price"):
-        # Correctly use the file ID as a string
         file_id = '19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK'  # Replace this with your actual Google Drive file ID
         model = load_model_from_drive(file_id)
         
@@ -61,16 +60,20 @@ def main():
             input_data = preprocess_input(kilometres, fuel_consumption, doors, seats)
             
             try:
-                # Make the prediction
-                prediction = model.predict(input_data)
-                
-                # Display the result
-                st.subheader("Predicted Price:")
-                st.write(f"${prediction[0]:,.2f}")
-                
-                # Visualize the result
-                st.subheader("Price Visualization")
-                st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+                # Check if the model has the predict method
+                if hasattr(model, 'predict'):
+                    # Make the prediction
+                    prediction = model.predict(input_data)
+                    
+                    # Display the result
+                    st.subheader("Predicted Price:")
+                    st.write(f"${prediction[0]:,.2f}")
+                    
+                    # Visualize the result
+                    st.subheader("Price Visualization")
+                    st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+                else:
+                    st.error("Loaded model does not have a predict method.")
             except Exception as e:
                 st.error(f"Error making prediction: {str(e)}")
         else:
@@ -78,3 +81,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
