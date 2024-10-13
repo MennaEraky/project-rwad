@@ -18,10 +18,14 @@ def download_model_from_drive(file_id, output):
 def load_model_from_drive(file_id):
     output = 'vehicle_price_model.pkl'
     if download_model_from_drive(file_id, output):
-        # Load the model from the local file
-        with open(output, 'rb') as file:
-            model = pickle.load(file)
-        return model
+        try:
+            # Load the model from the local file
+            with open(output, 'rb') as file:
+                model = pickle.load(file)
+            return model
+        except Exception as e:
+            st.error(f"Error loading the model: {str(e)}")
+            return None
     else:
         return None
 
@@ -52,20 +56,23 @@ def main():
         file_id = '19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK'  # Replace this with your actual Google Drive file ID
         model = load_model_from_drive(file_id)
         
-        if model:
+        if model is not None:
             # Preprocess the user input
             input_data = preprocess_input(kilometres, fuel_consumption, doors, seats)
             
-            # Make the prediction
-            prediction = model.predict(input_data)
-            
-            # Display the result
-            st.subheader("Predicted Price:")
-            st.write(f"${prediction[0]:,.2f}")
-            
-            # Visualize the result
-            st.subheader("Price Visualization")
-            st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+            try:
+                # Make the prediction
+                prediction = model.predict(input_data)
+                
+                # Display the result
+                st.subheader("Predicted Price:")
+                st.write(f"${prediction[0]:,.2f}")
+                
+                # Visualize the result
+                st.subheader("Price Visualization")
+                st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+            except Exception as e:
+                st.error(f"Error making prediction: {str(e)}")
         else:
             st.error("Failed to load the model.")
 
