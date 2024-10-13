@@ -6,20 +6,24 @@ import gdown
 
 # Function to download the model using gdown
 def download_model_from_drive(file_id, output):
-    # Use gdown to download the file correctly
-    url = f'https://drive.google.com/uc?id={file_id}'
-    gdown.download(url, output, quiet=False)
+    try:
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, output, quiet=False)
+    except Exception as e:
+        st.error(f"Error downloading the model: {str(e)}")
+        return False
+    return True
 
 # Load the trained model
 def load_model_from_drive(file_id):
-    # Define a local file name for the downloaded model
     output = 'vehicle_price_model.pkl'
-    download_model_from_drive(file_id, output)
-    
-    # Load the model from the local file
-    with open(output, 'rb') as file:
-        model = pickle.load(file)
-    return model
+    if download_model_from_drive(file_id, output):
+        # Load the model from the local file
+        with open(output, 'rb') as file:
+            model = pickle.load(file)
+        return model
+    else:
+        return None
 
 # Preprocess the input data
 def preprocess_input(kilometres, fuel_consumption, doors, seats):
@@ -48,19 +52,22 @@ def main():
         file_id = '19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK'  # Replace this with your actual Google Drive file ID
         model = load_model_from_drive(file_id)
         
-        # Preprocess the user input
-        input_data = preprocess_input(kilometres, fuel_consumption, doors, seats)
-        
-        # Make the prediction
-        prediction = model.predict(input_data)
-        
-        # Display the result
-        st.subheader("Predicted Price:")
-        st.write(f"${prediction[0]:,.2f}")
-        
-        # Visualize the result
-        st.subheader("Price Visualization")
-        st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+        if model:
+            # Preprocess the user input
+            input_data = preprocess_input(kilometres, fuel_consumption, doors, seats)
+            
+            # Make the prediction
+            prediction = model.predict(input_data)
+            
+            # Display the result
+            st.subheader("Predicted Price:")
+            st.write(f"${prediction[0]:,.2f}")
+            
+            # Visualize the result
+            st.subheader("Price Visualization")
+            st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+        else:
+            st.error("Failed to load the model.")
 
 if __name__ == "__main__":
     main()
