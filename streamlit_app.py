@@ -4,34 +4,26 @@ import pickle
 import gdown
 from sklearn.ensemble import RandomForestRegressor
 
-# Function to download the model using gdown
-def download_model_from_drive(file_id, output):
-    try:
-        url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(url, output, quiet=False)
-    except Exception as e:
-        st.error(f"Error downloading the model: {str(e)}")
-        return False
-    return True
-
-# Load the trained model
+# Function to download and load the model using gdown
 def load_model_from_drive(file_id):
     output = 'vehicle_price_model.pkl'
-    if download_model_from_drive(file_id, output):
-        try:
-            # Load the model from the local file
-            with open(output, 'rb') as file:
-                model = pickle.load(file)
-            # Check if the model is an instance of RandomForestRegressor
-            if isinstance(model, RandomForestRegressor):
-                return model
-            else:
-                st.error("Loaded model is not a RandomForestRegressor.")
-                return None
-        except Exception as e:
-            st.error(f"Error loading the model: {str(e)}")
+    try:
+        # Construct the Google Drive download URL
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, output, quiet=False)
+        
+        # Load the model from the file
+        with open(output, 'rb') as file:
+            model = pickle.load(file)
+        
+        # Check if the loaded model is a RandomForestRegressor
+        if isinstance(model, RandomForestRegressor):
+            return model
+        else:
+            st.error("Loaded model is not a RandomForestRegressor.")
             return None
-    else:
+    except Exception as e:
+        st.error(f"Error loading the model: {str(e)}")
         return None
 
 # Preprocess the input data
@@ -57,7 +49,7 @@ def main():
     
     # Button for prediction
     if st.button("Predict Price"):
-        file_id = '19Y_7fbDCIWD2el7nzH6rVY15DRRcg2oK'  # Replace with your actual Google Drive file ID
+        file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
         model = load_model_from_drive(file_id)
         
         if model is not None:
