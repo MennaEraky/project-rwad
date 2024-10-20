@@ -114,7 +114,13 @@ def main():
 
         try:
             prediction = st.session_state.model.predict(input_df)
-            st.markdown(f"<div class='prediction-box'>Predicted Price: ${prediction[0]:,.2f}</div>", unsafe_allow_html=True)
+
+            # Styled prediction display
+            st.markdown(f"""
+                <div style="font-size: 24px; padding: 10px; background-color: #f0f4f8; border: 2px solid #3e9f7d; border-radius: 5px; text-align: center;">
+                    <strong>Predicted Price:</strong> ${prediction[0]:,.2f}
+                </div>
+            """, unsafe_allow_html=True)
 
             # Feature importance
             st.subheader("Feature Importance")
