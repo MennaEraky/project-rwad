@@ -7,4 +7,5 @@ plotly
 matplotlib
 seaborn
 requests
+pickle
 
