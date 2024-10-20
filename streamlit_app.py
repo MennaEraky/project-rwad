@@ -49,8 +49,7 @@ def load_model_from_drive(file_id):
 def load_data_from_drive(file_id):
     url = f'https://drive.google.com/uc?id={file_id}'
     try:
-        # Use on_bad_lines to skip problematic lines
-        df = pd.read_csv(url, on_bad_lines='skip')  # Adjust parameters as needed
+        df = pd.read_csv(url)
         return df
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
@@ -65,6 +64,11 @@ def preprocess_input(data, model):
     st.write("Encoded input columns:", input_df_encoded.columns.tolist())
 
     model_features = model.feature_names_in_
+
+    # Check for missing columns
+    missing_features = set(model_features) - set(input_df_encoded.columns)
+    if missing_features:
+        st.error(f"Missing features in input: {missing_features}")
 
     # Reindex to match model features
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)
@@ -104,7 +108,7 @@ def main():
     st.write("Enter the vehicle details below to predict its price.")
 
     # Load data for visualization from Google Drive
-    file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for data
+    file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID
     df = load_data_from_drive(file_id)
 
     col1, col2 = st.columns(2)
@@ -144,6 +148,10 @@ def main():
             'BodyType': body_type,
             'Doors': doors
         }
+
+        # Debugging output
+        st.write("Input data before processing:", input_data)
+
         input_df = preprocess_input(input_data, st.session_state.model)
 
         try:
