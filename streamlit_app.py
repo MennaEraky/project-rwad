@@ -162,4 +162,22 @@ def main():
             }).sort_values('importance', ascending=False).head(10)
 
             # Plotting feature importance using plotly
-            fig = px.bar(feature
+            fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
+                         title='Feature Importance of the Random Forest Model',
+                         labels={'importance': 'Importance', 'feature': 'Features'})
+            st.plotly_chart(fig)
+
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
+
+    # Create the dashboard plots
+    st.subheader("Dashboard Visualizations")
+    dashboard_fig = create_dashboard(pd.read_csv('your_dataset.csv'))  # Load your dataset for dashboard visualizations
+    st.plotly_chart(dashboard_fig)
+
+    # Create and display correlation matrix
+    st.subheader("Correlation Matrix of Models")
+    plot_correlation_matrix()
+
+if __name__ == "__main__":
+    main()
