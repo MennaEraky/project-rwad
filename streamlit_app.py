@@ -32,6 +32,13 @@ def preprocess_input(data, model):
     input_df_encoded = pd.get_dummies(input_df, drop_first=True)  # One-hot encode categorical variables
     model_features = model.feature_names_in_  # Get the features used during training
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
+    
+    # Debugging outputs to ensure correct encoding
+    st.write("Input Data (Encoded):")
+    st.write(input_df_encoded)
+    st.write("Model Features:")
+    st.write(model_features)
+    
     return input_df_encoded
 
 # Create a function to generate plots
