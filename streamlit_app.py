@@ -88,6 +88,26 @@ def visualize_correlations(df):
                     title="Correlation Heatmap")
     st.plotly_chart(fig)
 
+# Create additional visualizations
+def additional_visualizations(df):
+    st.subheader("Price vs Engine Size")
+    fig_engine = px.scatter(df, x='Engine', y='Price', title='Price vs Engine Size', 
+                             labels={'Engine': 'Engine Size (L)', 'Price': 'Price'},
+                             trendline='ols')
+    st.plotly_chart(fig_engine)
+
+    st.subheader("Price vs Number of Cylinders")
+    fig_cylinders = px.box(df, x='CylindersinEngine', y='Price', 
+                            title='Price Distribution by Number of Cylinders',
+                            labels={'CylindersinEngine': 'Cylinders in Engine', 'Price': 'Price'})
+    st.plotly_chart(fig_cylinders)
+
+    st.subheader("Price vs Fuel Consumption")
+    fig_fuel = px.scatter(df, x='FuelConsumption', y='Price', title='Price vs Fuel Consumption',
+                          labels={'FuelConsumption': 'Fuel Consumption (L/100 km)', 'Price': 'Price'},
+                          trendline='ols')
+    st.plotly_chart(fig_fuel)
+
 # Main Streamlit app
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
@@ -156,35 +176,20 @@ def main():
                 'importance': st.session_state.model.feature_importances_
             }).sort_values('importance', ascending=False).head(10)
 
-            # Plotting feature importance using plotly
-            fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig)
+            # Plotting feature importance
+            fig_importance = px.bar(feature_importance, x='importance', y='feature', orientation='h', title='Top 10 Feature Importance')
+            st.plotly_chart(fig_importance)
 
-            # Data Upload Section
-            st.markdown("---")
-            st.header("📊 Upload Your Vehicle Data for Visualization")
-
-            # File uploader
-            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
-
-            if uploaded_file is not None:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                    st.success("Data loaded successfully!")
-
-                    # Clean and visualize correlations
-                    df = clean_data(df)
-                    visualize_correlations(df)
-
-                except Exception as e:
-                    st.error(f"Error loading data: {str(e)}")
+            # Visualize correlations
+            visualize_correlations(df)
+            additional_visualizations(df)
 
         except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
-    else:
-        st.error("Failed to load the model.")
+            st.error(f"Error during prediction: {str(e)}")
 
-if __name__ == "__main__":
+# Load the dataset
+dataset_file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for dataset
+df = load_dataset_from_drive(dataset_file_id)
+if df is not None:
+    df = clean_data(df)
     main()
