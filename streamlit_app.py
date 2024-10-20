@@ -108,6 +108,57 @@ def additional_visualizations(df):
                           trendline='ols')
     st.plotly_chart(fig_fuel)
 
+# Visualize model performance metrics
+def visualize_model_performance():
+    models = [
+        "LinearRegression",
+        "Ridge",
+        "Lasso",
+        "ElasticNet",
+        "DecisionTreeRegressor",
+        "RandomForestRegressor",
+        "GradientBoostingRegressor",
+        "SVR",
+        "KNeighborsRegressor",
+        "MLPRegressor",
+        "AdaBoostRegressor",
+        "BaggingRegressor",
+        "ExtraTreesRegressor"
+    ]
+    
+    scores = [
+        [0.38643429, 0.35310009, 0.36801071],
+        [0.38620243, 0.35350286, 0.36843282],
+        [0.38620616, 0.35349711, 0.36843277],
+        [0.33686675, 0.31415677, 0.32787848],
+        [0.62213917, 0.40638212, 0.47242902],
+        [0.74799343, 0.70412406, 0.70161075],
+        [0.73002938, 0.70887856, 0.70533151],
+        [-0.03261018, -0.05532926, -0.05188942],
+        [0.64170728, 0.63380643, 0.64356449],
+        [-0.38015855, -0.41194531, -0.41229902],
+        [0.0021934, -0.43429876, -0.28546934],
+        [0.72923447, 0.70932019, 0.67318744],
+        [0.74919345, 0.70561132, 0.68979889]
+    ]
+    
+    mean_scores = [np.mean(score) for score in scores]
+    
+    # Create DataFrame for plotting
+    performance_df = pd.DataFrame({
+        'Model': models,
+        'Mean R² Score': mean_scores
+    })
+    
+    # Plot the performance
+    st.subheader("Model Performance Comparison")
+    fig_performance = px.bar(performance_df, x='Model', y='Mean R² Score', 
+                              title='Mean R² Score of Regression Models', 
+                              labels={'Mean R² Score': 'Mean R² Score'},
+                              color='Mean R² Score', 
+                              color_continuous_scale=px.colors.sequential.Viridis)
+    st.plotly_chart(fig_performance)
+
 # Main Streamlit app
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
@@ -126,70 +177,51 @@ def main():
 
     with col2:
         fuel_consumption = st.number_input("Fuel Consumption (L/100km) ⛽", min_value=0.0, value=8.0, step=0.1, key="fuel_consumption")
-        kilometres = st.number_input("Kilometres 🛣", min_value=0, value=50000, step=1000, key="kilometres")
-        cylinders_in_engine = st.number_input("Cylinders in Engine 🔢", min_value=1, value=4, key="cylinders_in_engine")
-        body_type = st.selectbox("Body Type 🚙", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"], key="body_type")
-        doors = st.selectbox("Number of Doors 🚪", [2, 3, 4, 5], key="doors")
+        kilometres = st.number_input("Kilometres 🛣", min_value=0, value=10000, key="kilometres")
+        cylinders = st.number_input("Cylinders in Engine 🔥", min_value=0, value=4, key="cylinders")
+        doors = st.number_input("Number of Doors 🚪", min_value=1, value=4, key="doors")
+        seats = st.number_input("Number of Seats 🪑", min_value=1, value=5, key="seats")
 
-    # Load model only once and store in session state
-    if 'model' not in st.session_state:
-        model_file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID for model
-        st.session_state.model = load_model_from_drive(model_file_id)
+    # Load the model
+    model_file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID for model
+    model = load_model_from_drive(model_file_id)
+    
+    if model is not None:
+        # Predict button
+        if st.button("Predict Price 💰"):
+            try:
+                user_input = {
+                    'Year': year,
+                    'UsedOrNew': 1 if used_or_new == "Used" else 0,
+                    'Transmission': transmission,
+                    'Engine': engine,
+                    'DriveType': drive_type,
+                    'FuelType': fuel_type,
+                    'FuelConsumption': fuel_consumption,
+                    'Kilometres': kilometres,
+                    'CylindersinEngine': cylinders,
+                    'Doors': doors,
+                    'Seats': seats
+                }
+                input_df_encoded = preprocess_input(user_input, model)
+                prediction = model.predict(input_df_encoded)
 
-    # Make prediction automatically based on inputs
-    if st.session_state.model is not None:
-        input_data = {
-            'Year': year,
-            'UsedOrNew': used_or_new,
-            'Transmission': transmission,
-            'Engine': engine,
-            'DriveType': drive_type,
-            'FuelType': fuel_type,
-            'FuelConsumption': fuel_consumption,
-            'Kilometres': kilometres,
-            'CylindersinEngine': cylinders_in_engine,
-            'BodyType': body_type,
-            'Doors': doors
-        }
-        input_df = preprocess_input(input_data, st.session_state.model)
+                st.success(f"The predicted price of the vehicle is: ${prediction[0]:,.2f}")
 
-        try:
-            prediction = st.session_state.model.predict(input_df)
+            except Exception as e:
+                st.error(f"Error during prediction: {str(e)}")
 
-            # Styled prediction display
-            st.markdown(f"""
-                <div style="font-size: 24px; padding: 10px; background-color: #f0f4f8; border: 2px solid #3e9f7d; border-radius: 5px; text-align: center;">
-                    <strong>Predicted Price:</strong> ${prediction[0]:,.2f}
-                </div>
-            """, unsafe_allow_html=True)
+    # Load the dataset
+    dataset_file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for dataset
+    df = load_dataset_from_drive(dataset_file_id)
+    if df is not None:
+        df = clean_data(df)
 
-            # Displaying input data and prediction as a table
-            st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-            input_df_display = pd.DataFrame(input_data, index=[0])
-            st.dataframe(input_df_display)
+        # Visualizations
+        visualize_correlations(df)
+        additional_visualizations(df)
+        visualize_model_performance()
 
-            # Feature importance
-            st.subheader("Feature Importance")
-            feature_importance = pd.DataFrame({
-                'feature': st.session_state.model.feature_names_in_,
-                'importance': st.session_state.model.feature_importances_
-            }).sort_values('importance', ascending=False).head(10)
-
-            # Plotting feature importance
-            fig_importance = px.bar(feature_importance, x='importance', y='feature', orientation='h', title='Top 10 Feature Importance')
-            st.plotly_chart(fig_importance)
-
-            # Visualize correlations
-            visualize_correlations(df)
-            additional_visualizations(df)
-
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-
-# Load the dataset
-dataset_file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for dataset
-df = load_dataset_from_drive(dataset_file_id)
-if df is not None:
-    df = clean_data(df)
+# Run the app
+if __name__ == "__main__":
     main()
