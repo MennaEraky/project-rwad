@@ -144,17 +144,26 @@ def visualize_model_performance():
     # Create DataFrame for plotting
     performance_df = pd.DataFrame({
         'Model': models,
-        'Mean R² Score': mean_scores
+        'Mean CrossVal Score': mean_scores
     })
     
+    max_accuracy_model = performance_df.loc[performance_df['Mean CrossVal Score'].idxmax()]
+
     # Plot the performance
     st.subheader("Model Performance Comparison")
-    fig_performance = px.bar(performance_df, x='Model', y='Mean R² Score', 
-                              title='Mean R² Score of Regression Models', 
-                              labels={'Mean R² Score': 'Mean R² Score'},
-                              color='Mean R² Score', 
+    fig_performance = px.bar(performance_df, x='Model', y='Mean CrossVal Score', 
+                              title='Mean CrossVal Score of Regression Models', 
+                              labels={'Mean CrossVal Score': 'Mean CrossVal Score'},
+                              color='Mean CrossVal Score', 
                               color_continuous_scale=px.colors.sequential.Viridis)
     st.plotly_chart(fig_performance)
+    
+    # Display model with largest accuracy
+    st.markdown(f"""
+        <div style="font-size: 20px; padding: 10px; background-color: #e8f5e9; border: 2px solid #4caf50; border-radius: 5px;">
+            <strong>Best Model:</strong> {max_accuracy_model['Model']} with Mean R² Score: {max_accuracy_model['Mean R² Score']:.2f}
+        </div>
+    """, unsafe_allow_html=True)
 
 # Main Streamlit app
 def main():
@@ -162,64 +171,69 @@ def main():
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
 
-    # Upload dataset
-    uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
-    if uploaded_file is not None:
-        df = load_dataset(uploaded_file)
-        if df is not None:
-            df = clean_data(df)
-
-            # Visualizations
-            visualize_correlations(df)
-            additional_visualizations(df)
-            visualize_model_performance()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        year = st.number_input("Year 📅", min_value=1900, max_value=2024, value=2020, key="year")
-        used_or_new = st.selectbox("Used or New 🏷", ["Used", "New"], key="used_or_new")
-        transmission = st.selectbox("Transmission ⚙", ["Manual", "Automatic"], key="transmission")
-        engine = st.number_input("Engine Size (L) 🔧", min_value=0.0, value=2.0, step=0.1, key="engine")
-        drive_type = st.selectbox("Drive Type 🛣", ["FWD", "RWD", "AWD"], key="drive_type")
-        fuel_type = st.selectbox("Fuel Type ⛽", ["Petrol", "Diesel", "Electric", "Hybrid"], key="fuel_type")
-
-    with col2:
-        fuel_consumption = st.number_input("Fuel Consumption (L/100km) ⛽", min_value=0.0, value=8.0, step=0.1, key="fuel_consumption")
-        kilometres = st.number_input("Kilometres Driven 🚗", min_value=0, value=10000, key="kilometres")
-        cylinders = st.number_input("Cylinders in Engine 🔥", min_value=0, value=4, key="cylinders")
-        doors = st.number_input("Number of Doors 🚪", min_value=1, value=4, key="doors")
-        seats = st.number_input("Number of Seats 🪑", min_value=1, value=5, key="seats")
-
     # Load the model
     model_file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID for model
     model = load_model_from_drive(model_file_id)
-    
+
     if model is not None:
-        # Predict button
-        if st.button("Predict Price 💰"):
-            try:
-                user_input = {
+        col1, col2 = st.columns(2)
+
+        with col1:
+            year = st.number_input("Year 📅", min_value=1900, max_value=2024, value=2020, key="year")
+            used_or_new = st.selectbox("Used or New 🏷", ["Used", "New"], key="used_or_new")
+            transmission = st.selectbox("Transmission 🚗", ["Automatic", "Manual"], key="transmission")
+            engine = st.number_input("Engine Size (L) 🔧", min_value=0.0, value=2.0, key="engine")
+            drive_type = st.selectbox("Drive Type 🚙", ["FWD", "RWD", "AWD"], key="drive_type")
+            fuel_type = st.selectbox("Fuel Type ⛽", ["Petrol", "Diesel", "Electric"], key="fuel_type")
+            fuel_consumption = st.number_input("Fuel Consumption (L/100 km) 📏", min_value=0.0, value=10.0, key="fuel_consumption")
+            kilometres = st.number_input("Kilometres Driven 🚗", min_value=0, value=50000, key="kilometres")
+            cylinders_in_engine = st.number_input("Cylinders in Engine 🔧", min_value=1, max_value=12, value=4, key="cylinders")
+            body_type = st.selectbox("Body Type 🚗", ["Sedan", "Hatchback", "SUV", "Truck", "Van"], key="body_type")
+            doors = st.number_input("Number of Doors 🚪", min_value=2, max_value=5, value=4, key="doors")
+
+        with col2:
+            if st.button("Predict Price 💰"):
+                # Create input data for prediction
+                input_data = {
                     'Year': year,
-                    'UsedOrNew': 1 if used_or_new == "Used" else 0,
+                    'UsedOrNew': used_or_new,
                     'Transmission': transmission,
                     'Engine': engine,
                     'DriveType': drive_type,
                     'FuelType': fuel_type,
                     'FuelConsumption': fuel_consumption,
                     'Kilometres': kilometres,
-                    'CylindersinEngine': cylinders,
-                    'Doors': doors,
-                    'Seats': seats
+                    'CylindersinEngine': cylinders_in_engine,
+                    'BodyType': body_type,
+                    'Doors': doors
                 }
-                input_df_encoded = preprocess_input(user_input, model)
-                prediction = model.predict(input_df_encoded)
+                
+                # Preprocess input data
+                processed_input = preprocess_input(input_data, model)
+                
+                # Predict the price
+                predicted_price = model.predict(processed_input)[0]
+                
+                # Display the predicted price
+                st.markdown(f"""
+                    <div style="font-size: 24px; padding: 20px; text-align: center; 
+                        background-color: #f0f4c3; border: 2px solid #8bc34a; 
+                        border-radius: 10px;">
+                        Predicted Price: <strong>${predicted_price:,.2f}</strong>
+                    </div>
+                """, unsafe_allow_html=True)
 
-                st.success(f"The predicted price of the vehicle is: ${prediction[0]:,.2f}")
+        # Load the dataset and preprocess it for visualization
+        dataset_file = st.file_uploader("Upload a CSV file containing vehicle data 📂", type="csv")
+        if dataset_file is not None:
+            df = load_dataset(dataset_file)
+            if df is not None:
+                df_cleaned = clean_data(df)
 
-            except Exception as e:
-                st.error(f"Error during prediction: {str(e)}")
+                # Display visualizations
+                visualize_correlations(df_cleaned)
+                additional_visualizations(df_cleaned)
+                visualize_model_performance()
 
-# Run the app
 if __name__ == "__main__":
     main()
