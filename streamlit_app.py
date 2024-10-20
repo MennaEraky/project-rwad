@@ -4,15 +4,7 @@ import numpy as np
 import pickle
 import gdown
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import GradientBoostingRegressor, BaggingRegressor, ExtraTreesRegressor
-from sklearn.svm import SVR
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import LabelEncoder
 
 # Function to download and load the model using gdown
@@ -23,11 +15,7 @@ def load_model_from_drive(file_id):
         gdown.download(url, output, quiet=False)
         with open(output, 'rb') as file:
             model = pickle.load(file)
-        if isinstance(model, RandomForestRegressor):
-            return model
-        else:
-            st.error("Loaded model is not a RandomForestRegressor.")
-            return None
+        return model
     except Exception as e:
         st.error(f"Error loading the model: {str(e)}")
         return None
@@ -55,18 +43,38 @@ def load_dataset_from_drive(file_id):
         st.error(f"Error loading dataset: {str(e)}")
         return None
 
-# Create a function to visualize correlations
-def visualize_correlations(df):
-    # Fill NaN values
+# Data cleaning and preprocessing function
+def clean_data(df):
+    # Replace certain values with NaN
+    df.replace(['POA', '-', '- / -'], np.nan, inplace=True)
+    
+    # Convert relevant columns to numeric
+    df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
+    df['Kilometres'] = pd.to_numeric(df['Kilometres'], errors='coerce')
+    
+    # Extract numeric values from string columns
+    df['FuelConsumption'] = df['FuelConsumption'].str.extract(r'(\d+\.\d+)').astype(float)
+    df['Doors'] = df['Doors'].str.extract(r'(\d+)').fillna(0).astype(int)
+    df['Seats'] = df['Seats'].str.extract(r'(\d+)').fillna(0).astype(int)
+    df['CylindersinEngine'] = df['CylindersinEngine'].str.extract(r'(\d+)').fillna(0).astype(int)
+    df['Engine'] = df['Engine'].str.extract(r'(\d+)').fillna(0).astype(int)
+
+    # Fill NaN values for specific columns
     df[['Kilometres', 'FuelConsumption']] = df[['Kilometres', 'FuelConsumption']].fillna(df[['Kilometres', 'FuelConsumption']].median())
     df.dropna(subset=['Year', 'Price'], inplace=True)
+    
+    # Drop unnecessary columns
     df.drop(columns=['Brand', 'Model', 'Car/Suv', 'Title', 'Location', 'ColourExtInt', 'Seats'], inplace=True)
 
     # Label encoding for categorical features
     label_encoder = LabelEncoder()
     for col in df.select_dtypes(include=['object']).columns:
         df[col] = label_encoder.fit_transform(df[col])
+    
+    return df
 
+# Create a function to visualize correlations
+def visualize_correlations(df):
     # Calculate the correlation matrix
     correlation = df.corr()
     correlation_with_price = correlation['Price']
@@ -167,6 +175,7 @@ def main():
                     st.success("Data loaded successfully!")
 
                     # Clean and visualize correlations
+                    df = clean_data(df)
                     visualize_correlations(df)
 
                 except Exception as e:
