@@ -29,7 +29,7 @@ def load_model_from_drive(file_id):
 # Preprocess the input data
 def preprocess_input(data, model):
     input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
-    input_df_encoded = pd.get_dummies(input_df, drop_first=True)
+    input_df_encoded = pd.get_dummies(input_df, drop_first=True)  # One-hot encode categorical variables
     model_features = model.feature_names_in_  # Get the features used during training
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
     return input_df_encoded
