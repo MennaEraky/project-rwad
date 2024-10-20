@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
-import requests
 import pickle
+import requests
 from io import BytesIO
-from sklearn.ensemble import RandomForestRegressor
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from sklearn.ensemble import RandomForestRegressor
 
-# Set page configuration
 st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
 
 # Custom CSS for better styling
@@ -59,7 +58,7 @@ def load_data_from_drive(file_id):
 def preprocess_input(data, model):
     input_df = pd.DataFrame(data, index=[0])
     input_df_encoded = pd.get_dummies(input_df, drop_first=True)
-    
+
     # Check the columns after encoding
     st.write("Encoded input columns:", input_df_encoded.columns.tolist())
 
@@ -106,24 +105,13 @@ def create_dashboard(df):
 
     return fig
 
-# Additional visualization functions
-def create_pie_chart(df):
-    pie_chart = px.pie(df, names='BodyType', title='Distribution of Body Types', hole=0.3)
-    return pie_chart
-
-def create_average_price_bar_chart(df):
-    avg_price_df = df.groupby('FuelType', as_index=False)['Price'].mean().sort_values(by='Price')
-    bar_chart = px.bar(avg_price_df, x='FuelType', y='Price', title='Average Price by Fuel Type', 
-                        labels={'Price': 'Average Price ($)', 'FuelType': 'Fuel Type'})
-    return bar_chart
-
 # Main Streamlit app
 def main():
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
 
     # Load data for visualization from Google Drive
-    file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
+    file_id = '1FjZWfVGrIIdtQVXu4g89lcVgQRBg8h1j'  # Google Drive file ID
     df = load_data_from_drive(file_id)
 
     col1, col2 = st.columns(2)
@@ -182,4 +170,21 @@ def main():
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig)
 
-            # Displaying
+            # Displaying input data and prediction as a table
+            st.subheader("Input Data and Prediction")
+            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
+            input_df_display = pd.DataFrame(input_data, index=[0])
+            st.dataframe(input_df_display)
+
+            # Create and display the dashboard
+            st.subheader("Vehicle Prices Dashboard")
+            dashboard_fig = create_dashboard(df)
+            st.plotly_chart(dashboard_fig)
+
+        except Exception as e:
+            st.error(f"Error making prediction: {str(e)}")
+    else:
+        st.error("Failed to load the model.")
+
+if __name__ == "__main__":
+    main()
