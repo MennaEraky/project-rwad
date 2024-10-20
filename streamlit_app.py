@@ -169,7 +169,7 @@ def visualize_model_performance():
 
 # Main Streamlit app
 def main():
-   st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
+    st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
 
