@@ -114,24 +114,18 @@ def main():
 
         try:
             prediction = st.session_state.model.predict(input_df)
-
-            # Styled prediction display
-            st.markdown(f"""
-                <div style="font-size: 24px; padding: 10px; background-color: #f0f4f8; border: 2px solid #3e9f7d; border-radius: 5px; text-align: center;">
-                    <strong>Predicted Price:</strong> ${prediction[0]:,.2f}
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size: 24px; background-color: lightgray; padding: 10px; border-radius: 5px;'>Predicted Price: ${prediction[0]:,.2f}</div>", unsafe_allow_html=True)
 
             # Feature importance
             st.subheader("Feature Importance")
             feature_importance = pd.DataFrame({
                 'feature': st.session_state.model.feature_names_in_,
                 'importance': st.session_state.model.feature_importances_
-            }).sort_values('importance', ascending=False).head(10)
+            }).sort_values('importance', ascending=False)  # Sort by importance descending
 
             # Plotting feature importance using plotly
             fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
+                         title='Top Features Importance', labels={'importance': 'Importance', 'feature': 'Feature'})
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig)
 
