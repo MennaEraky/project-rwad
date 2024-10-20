@@ -114,7 +114,7 @@ def plot_model_accuracy():
                  title='Model Accuracy Comparison',
                  labels={'Average Accuracy': 'Average Accuracy'},
                  color='Average Accuracy',
-                 color_continuous_scale=px.colors.sequential.Viridis)
+                 color_continuous_scale=px.colors.sequential.Gray)  # Neutral colors
 
     fig.update_layout(xaxis_title='Model', yaxis_title='Average Accuracy', xaxis_tickangle=-45)
     
@@ -179,6 +179,11 @@ def main():
         except Exception as e:
             st.error(f"Error making prediction: {str(e)}")
 
+    # Plot model accuracy
+    st.subheader("Model Accuracy Comparison")
+    accuracy_fig = plot_model_accuracy()
+    st.plotly_chart(accuracy_fig)
+
     # Upload CSV for visualization
     uploaded_file = st.file_uploader("Upload a CSV file with vehicle data for visualization 📊", type=["csv"])
     if uploaded_file is not None:
@@ -191,11 +196,6 @@ def main():
 
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
-
-    # Plot model accuracy
-    st.subheader("Model Accuracy Comparison")
-    accuracy_fig = plot_model_accuracy()
-    st.plotly_chart(accuracy_fig)
 
 if __name__ == "__main__":
     main()
