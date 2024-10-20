@@ -143,7 +143,7 @@ def main():
         doors = st.selectbox("Number of Doors 🚪", [2, 3, 4, 5], key="doors")
 
     if st.button("Predict Price 💰"):
-        model_id = "1Ypsmjf8OAmR2yVYc9s57WJHpwIMe-RE3"  # Replace with your model file ID
+        model_id = "11btPBNR74na_NjjnjrrYT8RSf8ffiumo"  # Replace with your model file ID
         model = load_model_from_drive(model_id)
 
         if model:
