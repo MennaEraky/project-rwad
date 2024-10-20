@@ -5,8 +5,6 @@ import gdown
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import seaborn as sns
-import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 
 # Function to download and load the model using gdown
@@ -29,69 +27,40 @@ def load_model_from_drive(file_id):
 # Preprocess the input data
 def preprocess_input(data, model):
     input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
-    input_df_encoded = pd.get_dummies(input_df, drop_first=True)  # One-hot encode categorical variables
+    # One-Hot Encoding for categorical features based on the training model's features
+    input_df_encoded = pd.get_dummies(input_df, drop_first=True)
+
+    # Reindex to ensure it matches the model's expected input
     model_features = model.feature_names_in_  # Get the features used during training
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
-    
-    # Debugging outputs to ensure correct encoding
-    st.write("Input Data (Encoded):")
-    st.write(input_df_encoded)
-    st.write("Model Features:")
-    st.write(model_features)
-    
     return input_df_encoded
 
 # Create a function to generate plots
-def create_dashboard(df, predicted_price):
-    # Scatter plot for Fuel Consumption vs. Predicted Price
-    scatter = px.scatter(df, x='FuelConsumption', y='Predicted Price', color='FuelType',
-                         title='Fuel Consumption vs Predicted Price', 
-                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Predicted Price': 'Predicted Price ($)'})
+def create_dashboard(df):
+    # Scatter plot for Fuel Consumption vs. Price
+    scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
+                         title='Fuel Consumption vs Price', 
+                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'})
 
     # Histogram for Price Distribution
-    histogram = px.histogram(df, x='Predicted Price', nbins=30, 
-                             title='Distribution of Predicted Vehicle Prices', 
-                             labels={'Predicted Price': 'Predicted Price ($)'})
+    histogram = px.histogram(df, x='Price', nbins=30, 
+                             title='Distribution of Vehicle Prices', 
+                             labels={'Price': 'Price ($)'})
 
-    # Box Plot for Predicted Price by Transmission Type
-    box = px.box(df, x='Transmission', y='Predicted Price', 
-                 title='Predicted Price Distribution by Transmission Type', 
-                 labels={'Transmission': 'Transmission Type', 'Predicted Price': 'Predicted Price ($)'})
-
-    # Pie Chart for Fuel Type Distribution
-    fuel_distribution = df['FuelType'].value_counts().reset_index()
-    fuel_distribution.columns = ['Fuel Type', 'Count']
-    pie_chart = px.pie(fuel_distribution, names='Fuel Type', values='Count', 
-                       title='Fuel Type Distribution')
-
-    # Correlation heatmap
-    corr = df.corr()
-    plt.figure(figsize=(10, 6))
-    sns.heatmap(corr, annot=True, fmt='.2f', cmap='coolwarm', square=True, cbar_kws={"shrink": .8})
-    plt.title("Feature Correlation Heatmap")
-    plt.tight_layout()
-    heatmap_fig = plt.gcf()
-    plt.close()
+    # Box Plot for Price by Transmission Type
+    box = px.box(df, x='Transmission', y='Price', 
+                 title='Price Distribution by Transmission Type', 
+                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
 
     # Dashboard Layout using Plotly
-    fig = make_subplots(rows=3, cols=2, subplot_titles=('Fuel Consumption vs Predicted Price', 
-                                                         'Predicted Price Distribution', 
-                                                         'Predicted Price by Transmission',
-                                                         'Fuel Type Distribution', 
-                                                         'Feature Correlation Heatmap'),
-                        specs=[[{"type": "scatter"}, {"type": "histogram"}],
-                               [{"type": "box"}, {"type": "pie"}],
-                               [{"colspan": 2, "type": "scatter"}, None]])
+    fig = make_subplots(rows=2, cols=2, subplot_titles=('Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission'),
+                        specs=[[{"type": "scatter"}, {"type": "histogram"}], [{"type": "box"}, None]])
 
     # Adding traces to the subplots
-    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Predicted Price'], mode='markers',
+    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
                              marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
-    fig.add_trace(go.Histogram(x=df['Predicted Price'], nbinsx=30, name='Predicted Price Distribution'), row=1, col=2)
-    fig.add_trace(go.Box(y=df['Predicted Price'], x=df['Transmission'], name='Predicted Price by Transmission'), row=2, col=1)
-    fig.add_trace(go.Pie(labels=fuel_distribution['Fuel Type'], values=fuel_distribution['Count'], name='Fuel Type Distribution'), row=2, col=2)
-
-    # Adding heatmap as a scatter plot with fixed size
-    fig.add_trace(go.Scatter(x=corr.index, y=corr.columns, mode='markers', marker=dict(size=8, color='lightblue'), name='Correlation Heatmap', text=corr.values.flatten()), row=3, col=1)
+    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
+    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
 
     # Update layout for interactivity and aesthetics
     fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
@@ -155,7 +124,7 @@ def main():
 
             # Displaying input data and prediction as a table
             st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"  # Adding prediction to input data
+            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
             input_df_display = pd.DataFrame(input_data, index=[0])
             st.dataframe(input_df_display)
 
@@ -164,21 +133,38 @@ def main():
             feature_importance = pd.DataFrame({
                 'feature': st.session_state.model.feature_names_in_,
                 'importance': st.session_state.model.feature_importances_
-            }).nlargest(10, 'importance')
+            }).sort_values('importance', ascending=False).head(10)
 
-            # Bar chart for feature importance
+            # Plotting feature importance using plotly
             fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                         title='Top 10 Important Features for Price Prediction')
+                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
+            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig)
 
-            # Generate and display dashboard
-            st.subheader("Vehicle Prices Dashboard")
-            dashboard_fig = create_dashboard(input_df_display, prediction[0])  # Pass predicted price to dashboard
-            st.plotly_chart(dashboard_fig)
+            # Data Upload Section
+            st.markdown("---")
+            st.header("📊 Upload Your Vehicle Data for Visualization")
 
+            # File uploader
+            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+
+            if uploaded_file is not None:
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    st.success("Data loaded successfully!")
+
+                    # Create and display the dashboard
+                    st.subheader("Vehicle Prices Dashboard")
+                    dashboard_fig = create_dashboard(df)
+                    st.plotly_chart(dashboard_fig)
+
+                except Exception as e:
+                    st.error(f"Error loading data: {str(e)}")
+        
         except Exception as e:
             st.error(f"Error making prediction: {str(e)}")
+    else:
+        st.error("Failed to load the model.")
 
-# Run the main function
 if __name__ == "__main__":
     main()
