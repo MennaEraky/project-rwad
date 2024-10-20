@@ -67,6 +67,37 @@ def create_dashboard(df):
 
     return fig
 
+# Create a function for the models accuracy graph
+def plot_model_accuracy():
+    # Model names and their corresponding accuracy values
+    models = {
+        "Linear Regression": [0.38643429, 0.35310009, 0.36801071],
+        "Ridge": [0.38620243, 0.35350286, 0.36843282],
+        "Lasso": [0.38620616, 0.35349711, 0.36843277],
+        "ElasticNet": [0.33686675, 0.31415677, 0.32787848],
+        "Decision Tree": [0.62213917, 0.40638212, 0.47242902],
+        "Random Forest": [0.74799343, 0.70412406, 0.70161075],
+        "Gradient Boosting": [0.73002938, 0.70887856, 0.70533151],
+        "SVR": [-0.03261018, -0.05532926, -0.05188942],
+        "KNeighbors": [0.64170728, 0.63380643, 0.64356449],
+        "MLP": [-0.38015855, -0.41194531, -0.41229902],
+        "AdaBoost": [0.0021934, -0.43429876, -0.28546934],
+        "Bagging": [0.72923447, 0.70932019, 0.67318744],
+        "Extra Trees": [0.74919345, 0.70561132, 0.68979889]
+    }
+
+    # Calculate average accuracy for each model
+    average_accuracies = {model: sum(accuracy) / len(accuracy) for model, accuracy in models.items()}
+
+    # Create a DataFrame for plotting
+    accuracy_df = pd.DataFrame(list(average_accuracies.items()), columns=["Model", "Average Accuracy"])
+    
+    # Plotting the average accuracy
+    fig = px.bar(accuracy_df, x='Model', y='Average Accuracy', title='Model Accuracies',
+                 labels={'Average Accuracy': 'Average Accuracy', 'Model': 'Regression Model'})
+    fig.update_layout(xaxis_tickangle=-45, height=600)
+    return fig
+
 # Main Streamlit app
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
@@ -117,54 +148,4 @@ def main():
 
             # Styled prediction display
             st.markdown(f"""
-                <div style="font-size: 24px; padding: 10px; background-color: #f0f4f8; border: 2px solid #3e9f7d; border-radius: 5px; text-align: center;">
-                    <strong>Predicted Price:</strong> ${prediction[0]:,.2f}
-                </div>
-            """, unsafe_allow_html=True)
-
-            # Displaying input data and prediction as a table
-            st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-            input_df_display = pd.DataFrame(input_data, index=[0])
-            st.dataframe(input_df_display)
-
-            # Feature importance
-            st.subheader("Feature Importance")
-            feature_importance = pd.DataFrame({
-                'feature': st.session_state.model.feature_names_in_,
-                'importance': st.session_state.model.feature_importances_
-            }).sort_values('importance', ascending=False).head(10)
-
-            # Plotting feature importance using plotly
-            fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig)
-
-            # Data Upload Section
-            st.markdown("---")
-            st.header("📊 Upload Your Vehicle Data for Visualization")
-
-            # File uploader
-            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
-
-            if uploaded_file is not None:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                    st.success("Data loaded successfully!")
-
-                    # Create and display the dashboard
-                    st.subheader("Vehicle Prices Dashboard")
-                    dashboard_fig = create_dashboard(df)
-                    st.plotly_chart(dashboard_fig)
-
-                except Exception as e:
-                    st.error(f"Error loading data: {str(e)}")
-        
-        except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
-    else:
-        st.error("Failed to load the model.")
-
-if __name__ == "__main__":
-    main()
+                <div style="font-size: 24px; padding: 10px; background-color
