@@ -1,63 +1,100 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import pickle
+import gdown
 import plotly.express as px
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 import seaborn as sns
-import joblib  # or your preferred library for loading models
+import matplotlib.pyplot as plt
+import numpy as np
+from plotly.subplots import make_subplots
+from sklearn.ensemble import RandomForestRegressor
 
-# Function to load the model from Google Drive (or other source)
+# Function to download and load the model using gdown
 def load_model_from_drive(file_id):
-    # Load your model using joblib or any other method
-    model = joblib.load(f'https://drive.google.com/uc?id={file_id}')
-    return model
+    output = 'vehicle_price_model.pkl'
+    try:
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, output, quiet=False)
+        with open(output, 'rb') as file:
+            model = pickle.load(file)
+        if isinstance(model, RandomForestRegressor):
+            return model
+        else:
+            st.error("Loaded model is not a RandomForestRegressor.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading the model: {str(e)}")
+        return None
 
-# Function to preprocess input data
-def preprocess_input(input_data, model):
-    # Convert input data to DataFrame
-    input_df = pd.DataFrame([input_data])
-    
-    # One-hot encode categorical features
-    input_df_encoded = pd.get_dummies(input_df, columns=['UsedOrNew', 'Transmission', 'DriveType', 'FuelType', 'BodyType'], drop_first=True)
-    
-    # Ensure all necessary columns for the model are present
-    model_columns = model.feature_names_in_  # Get feature names from the model
-    missing_cols = set(model_columns) - set(input_df_encoded.columns)
+# Preprocess the input data
+def preprocess_input(data, model):
+    input_df = pd.DataFrame(data, index=[0])
+    input_df_encoded = pd.get_dummies(input_df, drop_first=True)
+    model_features = model.feature_names_in_
+    input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)
+    return input_df_encoded
 
-    # Add missing columns with 0 values
+# Function to preprocess uploaded dataset
+def preprocess_uploaded_data(df, model):
+    df_encoded = pd.get_dummies(df, columns=['UsedOrNew', 'Transmission', 'DriveType', 'FuelType', 'BodyType'], drop_first=True)
+    model_columns = model.feature_names_in_
+    missing_cols = set(model_columns) - set(df_encoded.columns)
+
     for col in missing_cols:
-        input_df_encoded[col] = 0
-    
-    # Reorder columns to match model's input
-    input_df_encoded = input_df_encoded[model_columns]
-    
-    return input_df_encoded  # Modify this based on your preprocessing needs
+        df_encoded[col] = 0
 
-# Function to create the main dashboard visualization
+    df_encoded = df_encoded[model_columns]
+    
+    return df_encoded
+
+# Create a function to generate plots
 def create_dashboard(df):
-    # Example: create a scatter plot of price vs. kilometres
-    fig = px.scatter(df, x='Kilometres', y='Price', color='FuelType',
-                     title='Price vs. Kilometres Driven',
-                     labels={'Kilometres': 'Kilometres Driven', 'Price': 'Price'})
+    scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
+                         title='Fuel Consumption vs Price', 
+                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'})
+
+    histogram = px.histogram(df, x='Price', nbins=30, 
+                             title='Distribution of Vehicle Prices', 
+                             labels={'Price': 'Price ($)'})
+
+    box = px.box(df, x='Transmission', y='Price', 
+                 title='Price Distribution by Transmission Type', 
+                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
+
+    fig = make_subplots(rows=2, cols=2, subplot_titles=('Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission'),
+                        specs=[[{"type": "scatter"}, {"type": "histogram"}], [{"type": "box"}, None]])
+
+    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
+                             marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
+    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
+    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
+
+    fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
+
     return fig
 
-# Function to generate additional visualizations
-def create_additional_visualizations(df, results):
-    # Correlation heatmap
+# Function to create additional visualizations
+def create_additional_visualizations(df):
+    # Correlation Heatmap
+    st.subheader("Correlation Heatmap")
     corr_matrix = df.corr()
-
     plt.figure(figsize=(12, 12))
     sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', linewidths=.5, vmin=-1, vmax=1)
-    plt.title('Correlation Heatmap')
-    st.pyplot(plt)  # Display heatmap in Streamlit
+    st.pyplot(plt)
 
     # Box plots for numerical columns
-    numerical_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    numerical_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     for col in numerical_cols:
-        fig = px.box(df, y=col, title=f'Box Plot of {col}')
+        fig = px.box(df, y=col, title=f'Box Plot for {col}')
         st.plotly_chart(fig)
 
-    # Comparison of regression algorithms
+    # Example Model Results for comparison (Replace this with your actual model results)
+    results = {
+        'Model A': [0.8, 0.85, 0.82],
+        'Model B': [0.75, 0.78, 0.76],
+        'Model C': [0.88, 0.86, 0.87]
+    }
     model_names = list(results.keys())
     average_scores = [np.mean(scores) for scores in results.values()]
 
@@ -66,9 +103,9 @@ def create_additional_visualizations(df, results):
     plt.xlabel('Average Cross-Validation Score')
     plt.title('Comparison of Regression Algorithms')
     plt.gca().invert_yaxis()
-    st.pyplot(plt)  # Display bar chart in Streamlit
+    st.pyplot(plt)
 
-# Main function to run the Streamlit app
+# Main Streamlit app
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
@@ -91,12 +128,10 @@ def main():
         body_type = st.selectbox("Body Type 🚙", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"], key="body_type")
         doors = st.selectbox("Number of Doors 🚪", [2, 3, 4, 5], key="doors")
 
-    # Load model only once and store in session state
     if 'model' not in st.session_state:
-        model_file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID for model
+        model_file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'
         st.session_state.model = load_model_from_drive(model_file_id)
 
-    # Make prediction automatically based on inputs
     if st.session_state.model is not None:
         input_data = {
             'Year': year,
@@ -130,7 +165,6 @@ def main():
                 'importance': st.session_state.model.feature_importances_
             }).sort_values('importance', ascending=False).head(10)
 
-            # Plotting feature importance using plotly
             fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
                          title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
@@ -139,46 +173,52 @@ def main():
             # Displaying input data and prediction as a table
             st.subheader("Input Data and Prediction")
             input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-            input_df_display = pd.DataFrame(input_data, index=[0])
-            st.dataframe(input_df_display)
+            st.write(pd.DataFrame([input_data]).T, header=None)
 
-            # Data Upload Section
+            # Dashboard
+            st.subheader("Vehicle Prices Dashboard")
+            dashboard_fig = create_dashboard(pd.read_csv('your_vehicle_data.csv'))  # Update with your vehicle data source
+            st.plotly_chart(dashboard_fig)
+
+            # Additional visualizations
             st.markdown("---")
-            st.header("📊 Upload Your Vehicle Data for Visualization")
+            st.subheader("Additional Visualizations")
+            create_additional_visualizations(pd.read_csv('your_vehicle_data.csv'))  # Update with your vehicle data source
 
-            # File uploader
-            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
-
-            if uploaded_file is not None:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                    st.success("Data loaded successfully!")
-
-                    # Create and display the dashboard
-                    st.subheader("Vehicle Prices Dashboard")
-                    dashboard_fig = create_dashboard(df)
-                    st.plotly_chart(dashboard_fig)
-
-                    # Create additional visualizations
-                    st.markdown("---")
-                    st.subheader("Additional Visualizations")
-
-                    # Results should be a dictionary of models and their cross-validation scores
-                    results = {
-                        # Example model results; replace these with actual results
-                        'Model A': [0.8, 0.85, 0.82],
-                        'Model B': [0.75, 0.78, 0.76],
-                        'Model C': [0.88, 0.86, 0.87]
-                    }
-                    create_additional_visualizations(df, results)
-
-                except Exception as e:
-                    st.error(f"Error loading data: {str(e)}")
-        
         except Exception as e:
             st.error(f"Error making prediction: {str(e)}")
-    else:
-        st.error("Failed to load the model.")
+
+    # Data Upload Section
+    st.markdown("---")
+    st.header("📊 Upload Your Vehicle Data for Visualization")
+    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
+            st.success("Data loaded successfully!")
+
+            # Preprocess the uploaded data
+            df_encoded = preprocess_uploaded_data(df, st.session_state.model)
+
+            # Make predictions on the preprocessed data
+            predictions = st.session_state.model.predict(df_encoded)
+
+            # Add predictions to the dataframe
+            df['Predicted Price'] = predictions
+
+            # Create and display the dashboard
+            st.subheader("Vehicle Prices Dashboard")
+            dashboard_fig = create_dashboard(df)
+            st.plotly_chart(dashboard_fig)
+
+            # Create additional visualizations
+            st.markdown("---")
+            st.subheader("Additional Visualizations")
+            create_additional_visualizations(df)
+
+        except Exception as e:
+            st.error(f"Error loading data: {str(e)}")
 
 if __name__ == "__main__":
     main()
