@@ -122,6 +122,12 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
 
+            # Displaying input data and prediction as a table
+            st.subheader("Input Data and Prediction")
+            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
+            input_df_display = pd.DataFrame(input_data, index=[0])
+            st.dataframe(input_df_display)
+
             # Feature importance
             st.subheader("Feature Importance")
             feature_importance = pd.DataFrame({
@@ -134,12 +140,6 @@ def main():
                          title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig)
-
-            # Displaying input data and prediction as a table
-            st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-            input_df_display = pd.DataFrame(input_data, index=[0])
-            st.dataframe(input_df_display)
 
             # Data Upload Section
             st.markdown("---")
