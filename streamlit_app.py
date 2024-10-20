@@ -7,6 +7,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import GradientBoostingRegressor, BaggingRegressor, ExtraTreesRegressor
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.svm import SVR
+from sklearn.neural_network import MLPRegressor
 
 # Function to download and load the model using gdown
 def load_model_from_drive(file_id):
@@ -36,12 +42,10 @@ def preprocess_input(data, model):
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
     return input_df_encoded
 
-# Create a function to clean the uploaded DataFrame
-def clean_data(df):
-    # Replace specific values with NaN
+# Create a function to generate plots
+def create_dashboard(df):
+    # Replace specific values with NaN and convert relevant columns to numeric
     df.replace(['POA', '-', '- / -'], np.nan, inplace=True)
-
-    # Convert relevant columns to numeric types
     df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
     df['Kilometres'] = pd.to_numeric(df['Kilometres'], errors='coerce')
     df['FuelConsumption'] = df['FuelConsumption'].str.extract(r'(\d+\.\d+)').astype(float)
@@ -50,10 +54,9 @@ def clean_data(df):
     df['CylindersinEngine'] = df['CylindersinEngine'].str.extract(r'(\d+)').fillna(0).astype(int)
     df['Engine'] = df['Engine'].str.extract(r'(\d+)').fillna(0).astype(int)
 
-    return df
+    # Calculate correlation matrix for numeric values
+    corr_matrix = df.corr()
 
-# Create a function to generate plots including correlation analysis
-def create_dashboard(df):
     # Scatter plot for Fuel Consumption vs. Price
     scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
                          title='Fuel Consumption vs Price', 
@@ -69,18 +72,13 @@ def create_dashboard(df):
                  title='Price Distribution by Transmission Type', 
                  labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
 
-    # Create a correlation matrix
-    correlation_matrix = df[['Engine', 'CylindersinEngine', 'FuelConsumption', 'Price']].corr()
-
-    # Heatmap for Correlation Matrix
-    heatmap_fig = px.imshow(correlation_matrix, text_auto=True,
-                             title='Correlation Matrix',
-                             color_continuous_scale='Viridis',
-                             labels=dict(x="Features", y="Features", color="Correlation Coefficient"))
-
     # Dashboard Layout using Plotly
-    fig = make_subplots(rows=2, cols=2, subplot_titles=('Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission', 'Correlation Heatmap'),
-                        specs=[[{"type": "scatter"}, {"type": "histogram"}], [{"type": "box"}, {"type": "heatmap"}]])
+    fig = make_subplots(rows=3, cols=2, subplot_titles=(
+        'Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission',
+        'Correlation Heatmap', 'Regression Model Comparison', ''
+    ), specs=[[{"type": "scatter"}, {"type": "histogram"}],
+              [{"type": "box"}, {"type": "heatmap"}],
+              [{"type": "bar"}, None]])
 
     # Adding traces to the subplots
     fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
@@ -88,11 +86,31 @@ def create_dashboard(df):
     fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
     fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
 
-    # Add heatmap
-    fig.add_trace(go.Heatmap(z=correlation_matrix.values,
-                             x=correlation_matrix.columns,
-                             y=correlation_matrix.index,
-                             colorscale='Viridis', colorbar=dict(title='Correlation Coefficient')), row=2, col=2)
+    # Adding correlation heatmap
+    heatmap = go.Heatmap(z=corr_matrix.values, x=corr_matrix.columns, y=corr_matrix.columns, colorscale='Viridis', zmin=-1, zmax=1)
+    fig.add_trace(heatmap, row=2, col=2)
+
+    # Regression Models Comparison
+    regression_models = {
+        "LinearRegression": [0.38643429, 0.35310009, 0.36801071],
+        "Ridge": [0.38620243, 0.35350286, 0.36843282],
+        "Lasso": [0.38620616, 0.35349711, 0.36843277],
+        "ElasticNet": [0.33686675, 0.31415677, 0.32787848],
+        "DecisionTreeRegressor": [0.62213917, 0.40638212, 0.47242902],
+        "RandomForestRegressor": [0.74799343, 0.70412406, 0.70161075],
+        "GradientBoostingRegressor": [0.73002938, 0.70887856, 0.70533151],
+        "SVR": [-0.03261018, -0.05532926, -0.05188942],
+        "KNeighborsRegressor": [0.64170728, 0.63380643, 0.64356449],
+        "MLPRegressor": [-0.38015855, -0.41194531, -0.41229902],
+        "AdaBoostRegressor": [0.0021934, -0.43429876, -0.28546934],
+        "BaggingRegressor": [0.72923447, 0.70932019, 0.67318744],
+        "ExtraTreesRegressor": [0.74919345, 0.70561132, 0.68979889]
+    }
+    
+    model_names = list(regression_models.keys())
+    metrics = [np.mean(scores) for scores in regression_models.values()]
+
+    fig.add_trace(go.Bar(x=model_names, y=metrics, name='Mean R² Score', marker_color='indigo'), row=3, col=1)
 
     # Update layout for interactivity and aesthetics
     fig.update_layout(height=900, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
@@ -122,77 +140,35 @@ def main():
         body_type = st.selectbox("Body Type 🚙", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"], key="body_type")
         doors = st.selectbox("Number of Doors 🚪", [2, 3, 4, 5], key="doors")
 
-    # Load model only once and store in session state
-    if 'model' not in st.session_state:
-        model_file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID for model
-        st.session_state.model = load_model_from_drive(model_file_id)
+    if st.button("Predict Price 💰"):
+        model_id = "1Ypsmjf8OAmR2yVYc9s57WJHpwIMe-RE3"  # Replace with your model file ID
+        model = load_model_from_drive(model_id)
 
-    # Make prediction automatically based on inputs
-    if st.session_state.model is not None:
-        input_data = {
-            'Year': year,
-            'UsedOrNew': used_or_new,
-            'Transmission': transmission,
-            'Engine': engine,
-            'DriveType': drive_type,
-            'FuelType': fuel_type,
-            'FuelConsumption': fuel_consumption,
-            'Kilometres': kilometres,
-            'CylindersinEngine': cylinders_in_engine,
-            'BodyType': body_type,
-            'Doors': doors
-        }
-        input_df = preprocess_input(input_data, st.session_state.model)
+        if model:
+            input_data = {
+                'Year': year,
+                'UsedOrNew': used_or_new,
+                'Transmission': transmission,
+                'Engine': engine,
+                'DriveType': drive_type,
+                'FuelType': fuel_type,
+                'FuelConsumption': fuel_consumption,
+                'Kilometres': kilometres,
+                'CylindersinEngine': cylinders_in_engine,
+                'BodyType': body_type,
+                'Doors': doors
+            }
+            processed_input = preprocess_input(input_data, model)
+            predicted_price = model.predict(processed_input)
+            st.success(f"The predicted price of the vehicle is: ${predicted_price[0]:,.2f}")
 
-        try:
-            prediction = st.session_state.model.predict(input_df)
-
-            # Styled prediction display
-            st.markdown(f"""
-                <div style="font-size: 24px; padding: 10px; background-color: #f0f4f8; border: 2px solid #3e9f7d; border-radius: 5px; text-align: center;">
-                    <strong>Predicted Price:</strong> ${prediction[0]:,.2f}
-                </div>
-            """, unsafe_allow_html=True)
-
-            # Displaying input data and prediction as a table
-            st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-            input_df_display = pd.DataFrame(input_data, index=[0])
-            st.dataframe(input_df_display)
-
-            # Feature importance
-            st.subheader("Feature Importance")
-            feature_importance = pd.DataFrame({
-                'feature': st.session_state.model.feature_names_in_,
-                'importance': st.session_state.model.feature_importances_
-            }).sort_values(by='importance', ascending=False)
-
-            fig_importance = px.bar(feature_importance, x='feature', y='importance',
-                                     title='Feature Importance', labels={'importance': 'Importance', 'feature': 'Feature'},
-                                     color='importance', color_continuous_scale='Blues')
-
-            st.plotly_chart(fig_importance)
-
-        except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
-
-    # File uploader for data visualization
-    st.subheader("Upload a CSV File for Correlation Analysis")
-    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-        df_cleaned = clean_data(df)
-        
-        # Show cleaned data and create visualizations
-        st.write("Cleaned Data Preview:")
-        st.dataframe(df_cleaned)
-
-        # Create and display dashboard plots
-        dashboard_fig = create_dashboard(df_cleaned)
-        st.plotly_chart(dashboard_fig)
-
-    st.warning("Please ensure that the uploaded CSV file contains the following columns: 'Price', 'FuelConsumption', 'Kilometres', 'CylindersinEngine', 'Engine', 'Transmission'.")
+    # Load dataset for dashboard
+    try:
+        df = pd.read_csv('vehicle_data.csv')  # Update with your dataset path
+        fig = create_dashboard(df)
+        st.plotly_chart(fig)
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
 
 if __name__ == "__main__":
     main()
