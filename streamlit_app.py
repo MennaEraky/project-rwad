@@ -10,9 +10,10 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import GradientBoostingRegressor, BaggingRegressor, ExtraTreesRegressor
-from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
+from sklearn.preprocessing import LabelEncoder
 
 # Function to download and load the model using gdown
 def load_model_from_drive(file_id):
@@ -42,89 +43,49 @@ def preprocess_input(data, model):
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
     return input_df_encoded
 
-# Create a function to generate plots
-def create_dashboard(df):
-    # Replace specific values with NaN and convert relevant columns to numeric
-    df.replace(['POA', '-', '- / -'], np.nan, inplace=True)
-    df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
-    df['Kilometres'] = pd.to_numeric(df['Kilometres'], errors='coerce')
-    df['FuelConsumption'] = df['FuelConsumption'].str.extract(r'(\d+\.\d+)').astype(float)
-    df['Doors'] = df['Doors'].str.extract(r'(\d+)').fillna(0).astype(int)
-    df['Seats'] = df['Seats'].str.extract(r'(\d+)').fillna(0).astype(int)
-    df['CylindersinEngine'] = df['CylindersinEngine'].str.extract(r'(\d+)').fillna(0).astype(int)
-    df['Engine'] = df['Engine'].str.extract(r'(\d+)').fillna(0).astype(int)
+# Load the dataset from Google Drive
+def load_dataset_from_drive(file_id):
+    output = 'Australian_Vehicle_Prices.csv'
+    try:
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, output, quiet=False)
+        df = pd.read_csv(output)
+        return df
+    except Exception as e:
+        st.error(f"Error loading dataset: {str(e)}")
+        return None
 
-    # Calculate correlation matrix for numeric values
-    corr_matrix = df.corr()
+# Create a function to visualize correlations
+def visualize_correlations(df):
+    # Fill NaN values
+    df[['Kilometres', 'FuelConsumption']] = df[['Kilometres', 'FuelConsumption']].fillna(df[['Kilometres', 'FuelConsumption']].median())
+    df.dropna(subset=['Year', 'Price'], inplace=True)
+    df.drop(columns=['Brand', 'Model', 'Car/Suv', 'Title', 'Location', 'ColourExtInt', 'Seats'], inplace=True)
 
-    # Scatter plot for Fuel Consumption vs. Price
-    scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
-                         title='Fuel Consumption vs Price', 
-                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'})
+    # Label encoding for categorical features
+    label_encoder = LabelEncoder()
+    for col in df.select_dtypes(include=['object']).columns:
+        df[col] = label_encoder.fit_transform(df[col])
 
-    # Histogram for Price Distribution
-    histogram = px.histogram(df, x='Price', nbins=30, 
-                             title='Distribution of Vehicle Prices', 
-                             labels={'Price': 'Price ($)'})
-
-    # Box Plot for Price by Transmission Type
-    box = px.box(df, x='Transmission', y='Price', 
-                 title='Price Distribution by Transmission Type', 
-                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
-
-    # Dashboard Layout using Plotly
-    fig = make_subplots(rows=3, cols=2, subplot_titles=(
-        'Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission',
-        'Correlation Heatmap', 'Regression Model Comparison', ''
-    ), specs=[[{"type": "scatter"}, {"type": "histogram"}],
-              [{"type": "box"}, {"type": "heatmap"}],
-              [{"type": "bar"}, None]])
-
-    # Adding traces to the subplots
-    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
-                             marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
-    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
-    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
-
-    # Adding correlation heatmap
-    heatmap = go.Heatmap(z=corr_matrix.values, x=corr_matrix.columns, y=corr_matrix.columns, colorscale='Viridis', zmin=-1, zmax=1)
-    fig.add_trace(heatmap, row=2, col=2)
-
-    # Regression Models Comparison
-    regression_models = {
-        "LinearRegression": [0.38643429, 0.35310009, 0.36801071],
-        "Ridge": [0.38620243, 0.35350286, 0.36843282],
-        "Lasso": [0.38620616, 0.35349711, 0.36843277],
-        "ElasticNet": [0.33686675, 0.31415677, 0.32787848],
-        "DecisionTreeRegressor": [0.62213917, 0.40638212, 0.47242902],
-        "RandomForestRegressor": [0.74799343, 0.70412406, 0.70161075],
-        "GradientBoostingRegressor": [0.73002938, 0.70887856, 0.70533151],
-        "SVR": [-0.03261018, -0.05532926, -0.05188942],
-        "KNeighborsRegressor": [0.64170728, 0.63380643, 0.64356449],
-        "MLPRegressor": [-0.38015855, -0.41194531, -0.41229902],
-        "AdaBoostRegressor": [0.0021934, -0.43429876, -0.28546934],
-        "BaggingRegressor": [0.72923447, 0.70932019, 0.67318744],
-        "ExtraTreesRegressor": [0.74919345, 0.70561132, 0.68979889]
-    }
+    # Calculate the correlation matrix
+    correlation = df.corr()
+    correlation_with_price = correlation['Price']
     
-    model_names = list(regression_models.keys())
-    metrics = [np.mean(scores) for scores in regression_models.values()]
+    # Plot correlation
+    st.subheader("Correlation with Price")
+    st.write(correlation_with_price)
 
-    fig.add_trace(go.Bar(x=model_names, y=metrics, name='Mean R² Score', marker_color='indigo'), row=3, col=1)
+    # Heatmap of the correlation matrix
+    fig = px.imshow(correlation, text_auto=True, aspect="auto",
+                    title="Correlation Heatmap")
+    st.plotly_chart(fig)
 
-    # Update layout for interactivity and aesthetics
-    fig.update_layout(height=900, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
-
-    return fig
-
-# Main Streamlit app
 # Main Streamlit app
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
 
-    # Input columns
     col1, col2 = st.columns(2)
 
     with col1:
@@ -142,39 +103,79 @@ def main():
         body_type = st.selectbox("Body Type 🚙", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"], key="body_type")
         doors = st.selectbox("Number of Doors 🚪", [2, 3, 4, 5], key="doors")
 
-    if st.button("Predict Price 💰"):
-        model_id = "11btPBNR74na_NjjnjrrYT8RSf8ffiumo"  # Replace with your model file ID
-        model = load_model_from_drive(model_id)
+    # Load model only once and store in session state
+    if 'model' not in st.session_state:
+        model_file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID for model
+        st.session_state.model = load_model_from_drive(model_file_id)
 
-        if model:
-            input_data = {
-                'Year': year,
-                'UsedOrNew': used_or_new,
-                'Transmission': transmission,
-                'Engine': engine,
-                'DriveType': drive_type,
-                'FuelType': fuel_type,
-                'FuelConsumption': fuel_consumption,
-                'Kilometres': kilometres,
-                'CylindersinEngine': cylinders_in_engine,
-                'BodyType': body_type,
-                'Doors': doors
-            }
-            processed_input = preprocess_input(input_data, model)
-            predicted_price = model.predict(processed_input)
-            st.success(f"The predicted price of the vehicle is: ${predicted_price[0]:,.2f}")
+    # Make prediction automatically based on inputs
+    if st.session_state.model is not None:
+        input_data = {
+            'Year': year,
+            'UsedOrNew': used_or_new,
+            'Transmission': transmission,
+            'Engine': engine,
+            'DriveType': drive_type,
+            'FuelType': fuel_type,
+            'FuelConsumption': fuel_consumption,
+            'Kilometres': kilometres,
+            'CylindersinEngine': cylinders_in_engine,
+            'BodyType': body_type,
+            'Doors': doors
+        }
+        input_df = preprocess_input(input_data, st.session_state.model)
 
-    # Load dataset for dashboard
-    uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
-    if uploaded_file is not None:
         try:
-            df = pd.read_csv(uploaded_file)  # Use the uploaded file
-            fig = create_dashboard(df)
+            prediction = st.session_state.model.predict(input_df)
+
+            # Styled prediction display
+            st.markdown(f"""
+                <div style="font-size: 24px; padding: 10px; background-color: #f0f4f8; border: 2px solid #3e9f7d; border-radius: 5px; text-align: center;">
+                    <strong>Predicted Price:</strong> ${prediction[0]:,.2f}
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Displaying input data and prediction as a table
+            st.subheader("Input Data and Prediction")
+            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
+            input_df_display = pd.DataFrame(input_data, index=[0])
+            st.dataframe(input_df_display)
+
+            # Feature importance
+            st.subheader("Feature Importance")
+            feature_importance = pd.DataFrame({
+                'feature': st.session_state.model.feature_names_in_,
+                'importance': st.session_state.model.feature_importances_
+            }).sort_values('importance', ascending=False).head(10)
+
+            # Plotting feature importance using plotly
+            fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
+                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
+            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig)
+
+            # Data Upload Section
+            st.markdown("---")
+            st.header("📊 Upload Your Vehicle Data for Visualization")
+
+            # File uploader
+            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+
+            if uploaded_file is not None:
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    st.success("Data loaded successfully!")
+
+                    # Clean and visualize correlations
+                    visualize_correlations(df)
+
+                except Exception as e:
+                    st.error(f"Error loading data: {str(e)}")
+
         except Exception as e:
-            st.error(f"Error loading data: {str(e)}")
+            st.error(f"Error making prediction: {str(e)}")
     else:
-        st.info("Please upload a CSV file to visualize the data.")
+        st.error("Failed to load the model.")
 
 if __name__ == "__main__":
     main()
