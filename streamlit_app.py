@@ -32,12 +32,9 @@ def preprocess_input(data, model):
     return input_df_encoded
 
 # Load the dataset from Google Drive
-def load_dataset_from_drive(file_id):
-    output = 'Australian_Vehicle_Prices.csv'
+def load_dataset(file):
     try:
-        url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(url, output, quiet=False)
-        df = pd.read_csv(output)
+        df = pd.read_csv(file)
         return df
     except Exception as e:
         st.error(f"Error loading dataset: {str(e)}")
@@ -165,6 +162,18 @@ def main():
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
 
+    # Upload dataset
+    uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
+    if uploaded_file is not None:
+        df = load_dataset(uploaded_file)
+        if df is not None:
+            df = clean_data(df)
+
+            # Visualizations
+            visualize_correlations(df)
+            additional_visualizations(df)
+            visualize_model_performance()
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -177,7 +186,7 @@ def main():
 
     with col2:
         fuel_consumption = st.number_input("Fuel Consumption (L/100km) ⛽", min_value=0.0, value=8.0, step=0.1, key="fuel_consumption")
-        kilometres = st.number_input("Kilometres 🛣", min_value=0, value=10000, key="kilometres")
+        kilometres = st.number_input("Kilometres Driven 🚗", min_value=0, value=10000, key="kilometres")
         cylinders = st.number_input("Cylinders in Engine 🔥", min_value=0, value=4, key="cylinders")
         doors = st.number_input("Number of Doors 🚪", min_value=1, value=4, key="doors")
         seats = st.number_input("Number of Seats 🪑", min_value=1, value=5, key="seats")
@@ -210,17 +219,6 @@ def main():
 
             except Exception as e:
                 st.error(f"Error during prediction: {str(e)}")
-
-    # Load the dataset
-    dataset_file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for dataset
-    df = load_dataset_from_drive(dataset_file_id)
-    if df is not None:
-        df = clean_data(df)
-
-        # Visualizations
-        visualize_correlations(df)
-        additional_visualizations(df)
-        visualize_model_performance()
 
 # Run the app
 if __name__ == "__main__":
