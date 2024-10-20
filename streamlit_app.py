@@ -148,4 +148,29 @@ def main():
 
             # Styled prediction display
             st.markdown(f"""
-                <div style="font-size: 24px; padding: 10px; background-color
+                <div style="font-size: 24px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
+                    The predicted price of the vehicle is <span style="color: green;">${prediction[0]:,.2f}</span>
+                </div>
+            """, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error in prediction: {str(e)}")
+
+    # Create and display dashboard
+    st.subheader("📊 Vehicle Prices Dashboard")
+    sample_data = {
+        'Price': [30000, 32000, 29000, 35000, 27000],
+        'FuelConsumption': [8, 7, 10, 6, 9],
+        'Transmission': ['Automatic', 'Manual', 'Automatic', 'Manual', 'Automatic'],
+        'FuelType': ['Petrol', 'Diesel', 'Petrol', 'Diesel', 'Petrol']
+    }
+    df = pd.DataFrame(sample_data)
+    fig_dashboard = create_dashboard(df)
+    st.plotly_chart(fig_dashboard)
+
+    # Display model accuracy graph
+    st.subheader("📈 Model Accuracy Comparison")
+    fig_accuracy = plot_model_accuracy()
+    st.plotly_chart(fig_accuracy)
+
+if __name__ == "__main__":
+    main()
