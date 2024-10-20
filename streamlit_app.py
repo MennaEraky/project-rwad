@@ -1,73 +1,34 @@
-import streamlit as st
-import pandas as pd
-import pickle
-import gdown
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from sklearn.ensemble import RandomForestRegressor
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-# Function to download and load the model using gdown
-def load_model_from_drive(file_id):
-    output = 'vehicle_price_model.pkl'
-    try:
-        url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(url, output, quiet=False)
-        with open(output, 'rb') as file:
-            model = pickle.load(file)
-        if isinstance(model, RandomForestRegressor):
-            return model
-        else:
-            st.error("Loaded model is not a RandomForestRegressor.")
-            return None
-    except Exception as e:
-        st.error(f"Error loading the model: {str(e)}")
-        return None
+# Create a function to generate additional visualizations
+def create_additional_visualizations(df, results):
+    # Correlation heatmap
+    corr_matrix = df.corr()
 
-# Preprocess the input data
-def preprocess_input(data, model):
-    input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
-    # One-Hot Encoding for categorical features based on the training model's features
-    input_df_encoded = pd.get_dummies(input_df, drop_first=True)
+    plt.figure(figsize=(12, 12))
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', linewidths=.5, vmin=-1, vmax=1)
+    plt.title('Correlation Heatmap')
+    st.pyplot(plt)  # Display heatmap in Streamlit
 
-    # Reindex to ensure it matches the model's expected input
-    model_features = model.feature_names_in_  # Get the features used during training
-    input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
-    return input_df_encoded
+    # Box plots for numerical columns
+    numerical_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    for col in numerical_cols:
+        fig = px.box(df, y=col, title=f'Box Plot of {col}')
+        st.plotly_chart(fig)
 
-# Create a function to generate plots
-def create_dashboard(df):
-    # Scatter plot for Fuel Consumption vs. Price
-    scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
-                         title='Fuel Consumption vs Price', 
-                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'})
+    # Comparison of regression algorithms
+    model_names = list(results.keys())
+    average_scores = [np.mean(scores) for scores in results.values()]
 
-    # Histogram for Price Distribution
-    histogram = px.histogram(df, x='Price', nbins=30, 
-                             title='Distribution of Vehicle Prices', 
-                             labels={'Price': 'Price ($)'})
+    plt.figure(figsize=(10, 6))
+    plt.barh(model_names, average_scores, color='skyblue')
+    plt.xlabel('Average Cross-Validation Score')
+    plt.title('Comparison of Regression Algorithms')
+    plt.gca().invert_yaxis()
+    st.pyplot(plt)  # Display bar chart in Streamlit
 
-    # Box Plot for Price by Transmission Type
-    box = px.box(df, x='Transmission', y='Price', 
-                 title='Price Distribution by Transmission Type', 
-                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
-
-    # Dashboard Layout using Plotly
-    fig = make_subplots(rows=2, cols=2, subplot_titles=('Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission'),
-                        specs=[[{"type": "scatter"}, {"type": "histogram"}], [{"type": "box"}, None]])
-
-    # Adding traces to the subplots
-    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
-                             marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
-    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
-    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
-
-    # Update layout for interactivity and aesthetics
-    fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
-
-    return fig
-
-# Main Streamlit app
+# Modify the main function to include the new visualizations
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
@@ -122,12 +83,6 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
 
-            # Displaying input data and prediction as a table
-            st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-            input_df_display = pd.DataFrame(input_data, index=[0])
-            st.dataframe(input_df_display)
-
             # Feature importance
             st.subheader("Feature Importance")
             feature_importance = pd.DataFrame({
@@ -140,6 +95,12 @@ def main():
                          title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig)
+
+            # Displaying input data and prediction as a table
+            st.subheader("Input Data and Prediction")
+            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
+            input_df_display = pd.DataFrame(input_data, index=[0])
+            st.dataframe(input_df_display)
 
             # Data Upload Section
             st.markdown("---")
@@ -157,6 +118,11 @@ def main():
                     st.subheader("Vehicle Prices Dashboard")
                     dashboard_fig = create_dashboard(df)
                     st.plotly_chart(dashboard_fig)
+
+                    # Create additional visualizations
+                    st.markdown("---")
+                    st.subheader("Additional Visualizations")
+                    create_additional_visualizations(df, results)
 
                 except Exception as e:
                     st.error(f"Error loading data: {str(e)}")
