@@ -5,6 +5,8 @@ import gdown
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 
 # Function to download and load the model using gdown
@@ -66,6 +68,30 @@ def create_dashboard(df):
     fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
 
     return fig
+
+# Function to create and visualize the correlation matrix
+def plot_correlation_matrix():
+    # Create a DataFrame for the correlation coefficients
+    data = {
+        'Model': ['LinearRegression', 'Ridge', 'Lasso', 'ElasticNet', 'DecisionTreeRegressor',
+                  'RandomForestRegressor', 'GradientBoostingRegressor', 'SVR', 'KNeighborsRegressor',
+                  'MLPRegressor', 'AdaBoostRegressor', 'BaggingRegressor', 'ExtraTreesRegressor'],
+        'Correlation': [
+            0.36918169761707303, 0.3693793699575611, 0.3693786783175461, 0.3263006654986692,
+            0.50031676693003, 0.7179094160485805, 0.7147464816418635, -0.04660962071662748,
+            0.6396927351291215, -0.4014676252222696, -0.2391915667032826, 0.7039140326257874,
+            0.7148678842564921
+        ]
+    }
+
+    corr_df = pd.DataFrame(data)
+    corr_matrix = corr_df.corr()
+
+    # Create a heatmap for the correlation matrix
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt='.2f', square=True, cbar=True)
+    plt.title("Correlation Matrix of Models")
+    st.pyplot(plt)
 
 # Main Streamlit app
 def main():
@@ -136,35 +162,4 @@ def main():
             }).sort_values('importance', ascending=False).head(10)
 
             # Plotting feature importance using plotly
-            fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig)
-
-            # Data Upload Section
-            st.markdown("---")
-            st.header("📊 Upload Your Vehicle Data for Visualization")
-
-            # File uploader
-            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
-
-            if uploaded_file is not None:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                    st.success("Data loaded successfully!")
-
-                    # Create and display the dashboard
-                    st.subheader("Vehicle Prices Dashboard")
-                    dashboard_fig = create_dashboard(df)
-                    st.plotly_chart(dashboard_fig)
-
-                except Exception as e:
-                    st.error(f"Error loading data: {str(e)}")
-        
-        except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
-    else:
-        st.error("Failed to load the model.")
-
-if __name__ == "__main__":
-    main()
+            fig = px.bar(feature
