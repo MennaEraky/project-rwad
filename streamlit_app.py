@@ -108,8 +108,8 @@ def main():
     st.write("Enter the vehicle details below to predict its price.")
 
     # Load data for visualization from Google Drive
-    file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
-    df = load_data_from_drive(file_id)
+    dataset_file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for dataset
+    df = load_data_from_drive(dataset_file_id)
 
     col1, col2 = st.columns(2)
 
