@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -161,7 +163,7 @@ def visualize_model_performance():
     # Display model with largest accuracy
     st.markdown(f"""
         <div style="font-size: 20px; padding: 10px; background-color: #e8f5e9; border: 2px solid #4caf50; border-radius: 5px;">
-            <strong>Best Model:</strong> {max_accuracy_model['Model']} with Mean R² Score: {max_accuracy_model['Mean R² Score']:.2f}
+            <strong>Best Model:</strong> {max_accuracy_model['Model']} with Mean CrossVal Score: {max_accuracy_model['Mean CrossVal Score']:.2f}
         </div>
     """, unsafe_allow_html=True)
 
