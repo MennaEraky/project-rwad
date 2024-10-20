@@ -166,6 +166,7 @@ def visualize_model_performance():
 
 # Main Streamlit app
 # Main Streamlit app
+# Main Streamlit app
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
@@ -225,6 +226,9 @@ def main():
             input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
             input_df_display = pd.DataFrame(input_data, index=[0])
             st.dataframe(input_df_display)
+
+        except Exception as e:
+            st.error(f"An error occurred during prediction: {e}")
 
     # Load the dataset and preprocess it for visualization
     dataset_file = st.file_uploader("Upload a CSV file containing vehicle data 📂", type="csv")
