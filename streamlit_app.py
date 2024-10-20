@@ -40,17 +40,20 @@ def create_dashboard(df):
     # Scatter plot for Fuel Consumption vs. Price
     scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
                          title='Fuel Consumption vs Price', 
-                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'})
+                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'},
+                         color_discrete_sequence=px.colors.qualitative.Plotly)
 
     # Histogram for Price Distribution
     histogram = px.histogram(df, x='Price', nbins=30, 
                              title='Distribution of Vehicle Prices', 
-                             labels={'Price': 'Price ($)'})
+                             labels={'Price': 'Price ($)'},
+                             color_discrete_sequence=['#636EFA'])
 
     # Box Plot for Price by Transmission Type
     box = px.box(df, x='Transmission', y='Price', 
                  title='Price Distribution by Transmission Type', 
-                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
+                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'},
+                 color='Transmission', color_discrete_sequence=px.colors.qualitative.Set1)
 
     # Dashboard Layout using Plotly
     fig = make_subplots(rows=2, cols=2, subplot_titles=('Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission'),
@@ -58,12 +61,20 @@ def create_dashboard(df):
 
     # Adding traces to the subplots
     fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
-                             marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
-    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
-    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
+                             marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')),
+                             hoverinfo='text',
+                             text=df['FuelType']), row=1, col=1)
+    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution', marker_color='#636EFA'), row=1, col=2)
+    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission', marker_color='#FFA07A'), row=2, col=1)
 
     # Update layout for interactivity and aesthetics
-    fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
+    fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False,
+                      font=dict(family='Arial', size=14, color='Black'),
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)',
+                      xaxis=dict(titlefont=dict(size=16), tickfont=dict(size=14)),
+                      yaxis=dict(titlefont=dict(size=16), tickfont=dict(size=14)),
+                      margin=dict(l=40, r=40, t=40, b=40))
 
     return fig
 
@@ -137,8 +148,11 @@ def main():
 
             # Plotting feature importance using plotly
             fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
+                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'},
+                         color='importance', color_continuous_scale=px.colors.sequential.Viridis)
+            fig.update_layout(yaxis={'categoryorder': 'total ascending'},
+                              title_font=dict(size=18),
+                              font=dict(size=14))
             st.plotly_chart(fig)
 
             # Data Upload Section
@@ -159,12 +173,10 @@ def main():
                     st.plotly_chart(dashboard_fig)
 
                 except Exception as e:
-                    st.error(f"Error loading data: {str(e)}")
-        
-        except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
+                    st.error(f"Error loading the data: {str(e)}")
+
     else:
-        st.error("Failed to load the model.")
+        st.error("Failed to load the model. Please check the file ID.")
 
 if __name__ == "__main__":
     main()
