@@ -35,21 +35,21 @@ def preprocess_input(data, model):
     return input_df_encoded
 
 # Create a function to generate plots
-def create_dashboard(df):
-    # Scatter plot for Fuel Consumption vs. Price
-    scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
-                         title='Fuel Consumption vs Price', 
-                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'})
+def create_dashboard(df, predicted_price):
+    # Scatter plot for Fuel Consumption vs. Predicted Price
+    scatter = px.scatter(df, x='FuelConsumption', y='Predicted Price', color='FuelType',
+                         title='Fuel Consumption vs Predicted Price', 
+                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Predicted Price': 'Predicted Price ($)'})
 
     # Histogram for Price Distribution
-    histogram = px.histogram(df, x='Price', nbins=30, 
-                             title='Distribution of Vehicle Prices', 
-                             labels={'Price': 'Price ($)'})
+    histogram = px.histogram(df, x='Predicted Price', nbins=30, 
+                             title='Distribution of Predicted Vehicle Prices', 
+                             labels={'Predicted Price': 'Predicted Price ($)'})
 
-    # Box Plot for Price by Transmission Type
-    box = px.box(df, x='Transmission', y='Price', 
-                 title='Price Distribution by Transmission Type', 
-                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
+    # Box Plot for Predicted Price by Transmission Type
+    box = px.box(df, x='Transmission', y='Predicted Price', 
+                 title='Predicted Price Distribution by Transmission Type', 
+                 labels={'Transmission': 'Transmission Type', 'Predicted Price': 'Predicted Price ($)'})
 
     # Pie Chart for Fuel Type Distribution
     fuel_distribution = df['FuelType'].value_counts().reset_index()
@@ -67,9 +67,9 @@ def create_dashboard(df):
     plt.close()
 
     # Dashboard Layout using Plotly
-    fig = make_subplots(rows=3, cols=2, subplot_titles=('Fuel Consumption vs Price', 
-                                                         'Price Distribution', 
-                                                         'Price by Transmission',
+    fig = make_subplots(rows=3, cols=2, subplot_titles=('Fuel Consumption vs Predicted Price', 
+                                                         'Predicted Price Distribution', 
+                                                         'Predicted Price by Transmission',
                                                          'Fuel Type Distribution', 
                                                          'Feature Correlation Heatmap'),
                         specs=[[{"type": "scatter"}, {"type": "histogram"}],
@@ -77,12 +77,12 @@ def create_dashboard(df):
                                [{"colspan": 2, "type": "scatter"}, None]])
 
     # Adding traces to the subplots
-    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
+    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Predicted Price'], mode='markers',
                              marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
-    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
-    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
+    fig.add_trace(go.Histogram(x=df['Predicted Price'], nbinsx=30, name='Predicted Price Distribution'), row=1, col=2)
+    fig.add_trace(go.Box(y=df['Predicted Price'], x=df['Transmission'], name='Predicted Price by Transmission'), row=2, col=1)
     fig.add_trace(go.Pie(labels=fuel_distribution['Fuel Type'], values=fuel_distribution['Count'], name='Fuel Type Distribution'), row=2, col=2)
-    
+
     # Adding heatmap as a scatter plot with fixed size
     fig.add_trace(go.Scatter(x=corr.index, y=corr.columns, mode='markers', marker=dict(size=8, color='lightblue'), name='Correlation Heatmap', text=corr.values.flatten()), row=3, col=1)
 
@@ -148,7 +148,7 @@ def main():
 
             # Displaying input data and prediction as a table
             st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
+            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"  # Adding prediction to input data
             input_df_display = pd.DataFrame(input_data, index=[0])
             st.dataframe(input_df_display)
 
@@ -157,15 +157,16 @@ def main():
             feature_importance = pd.DataFrame({
                 'feature': st.session_state.model.feature_names_in_,
                 'importance': st.session_state.model.feature_importances_
-            }).sort_values('importance', ascending=False).head(10)
+            }).nlargest(10, 'importance')
 
+            # Bar chart for feature importance
             fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
                          title='Top 10 Important Features for Price Prediction')
             st.plotly_chart(fig)
 
             # Generate and display dashboard
             st.subheader("Vehicle Prices Dashboard")
-            dashboard_fig = create_dashboard(input_df_display)
+            dashboard_fig = create_dashboard(input_df_display, prediction[0])  # Pass predicted price to dashboard
             st.plotly_chart(dashboard_fig)
 
         except Exception as e:
