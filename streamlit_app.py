@@ -144,5 +144,6 @@ def main():
                 except Exception as e:
                     st.error(f"Error loading data: {str(e)}")
 
+# This line should not be indented inside the `main` function
 if __name__ == "__main__":
     main()
