@@ -1,20 +1,41 @@
 import streamlit as st
 import pandas as pd
+import requests
 import pickle
-import gdown
+from io import BytesIO
+from sklearn.ensemble import RandomForestRegressor
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from sklearn.ensemble import RandomForestRegressor
 
-# Function to download and load the model using gdown
+# Set page configuration
+st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .main {
+        padding: 2rem;
+        border-radius: 0.5rem;
+        background-color: #f0f2f6;
+    }
+    .prediction-box {
+        background-color: #e1e4e8;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Function to download and load the model
 def load_model_from_drive(file_id):
-    output = 'vehicle_price_model.pkl'
+    url = f'https://drive.google.com/uc?id={file_id}'
     try:
-        url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(url, output, quiet=False)
-        with open(output, 'rb') as file:
-            model = pickle.load(file)
+        response = requests.get(url)
+        model = pickle.load(BytesIO(response.content))
         if isinstance(model, RandomForestRegressor):
             return model
         else:
@@ -24,15 +45,33 @@ def load_model_from_drive(file_id):
         st.error(f"Error loading the model: {str(e)}")
         return None
 
+# Function to load data from Google Drive
+def load_data_from_drive(file_id):
+    url = f'https://drive.google.com/uc?id={file_id}'
+    try:
+        df = pd.read_csv(url)
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None
+
 # Preprocess the input data
 def preprocess_input(data, model):
-    input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
-    # One-Hot Encoding for categorical features based on the training model's features
+    input_df = pd.DataFrame(data, index=[0])
     input_df_encoded = pd.get_dummies(input_df, drop_first=True)
+    
+    # Check the columns after encoding
+    st.write("Encoded input columns:", input_df_encoded.columns.tolist())
 
-    # Reindex to ensure it matches the model's expected input
-    model_features = model.feature_names_in_  # Get the features used during training
-    input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
+    model_features = model.feature_names_in_
+
+    # Reindex to match model features
+    input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)
+
+    # Display the processed input DataFrame
+    st.write("Processed Input DataFrame:")
+    st.dataframe(input_df_encoded)
+
     return input_df_encoded
 
 # Create a function to generate plots
@@ -67,11 +106,25 @@ def create_dashboard(df):
 
     return fig
 
+# Additional visualization functions
+def create_pie_chart(df):
+    pie_chart = px.pie(df, names='BodyType', title='Distribution of Body Types', hole=0.3)
+    return pie_chart
+
+def create_average_price_bar_chart(df):
+    avg_price_df = df.groupby('FuelType', as_index=False)['Price'].mean().sort_values(by='Price')
+    bar_chart = px.bar(avg_price_df, x='FuelType', y='Price', title='Average Price by Fuel Type', 
+                        labels={'Price': 'Average Price ($)', 'FuelType': 'Fuel Type'})
+    return bar_chart
+
 # Main Streamlit app
 def main():
-    st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
+
+    # Load data for visualization from Google Drive
+    file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
+    df = load_data_from_drive(file_id)
 
     col1, col2 = st.columns(2)
 
@@ -129,36 +182,4 @@ def main():
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig)
 
-            # Displaying input data and prediction as a table
-            st.subheader("Input Data and Prediction")
-            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-            input_df_display = pd.DataFrame(input_data, index=[0])
-            st.dataframe(input_df_display)
-
-            # Data Upload Section
-            st.markdown("---")
-            st.header("📊 Upload Your Vehicle Data for Visualization")
-
-            # File uploader
-            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
-
-            if uploaded_file is not None:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                    st.success("Data loaded successfully!")
-
-                    # Create and display the dashboard
-                    st.subheader("Vehicle Prices Dashboard")
-                    dashboard_fig = create_dashboard(df)
-                    st.plotly_chart(dashboard_fig)
-
-                except Exception as e:
-                    st.error(f"Error loading data: {str(e)}")
-        
-        except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
-    else:
-        st.error("Failed to load the model.")
-
-if __name__ == "__main__":
-    main()
+            # Displaying
