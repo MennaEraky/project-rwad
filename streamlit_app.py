@@ -56,19 +56,19 @@ def create_dashboard(df):
     fig = make_subplots(rows=2, cols=2, subplot_titles=('Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission'),
                         specs=[[{"type": "scatter"}, {"type": "histogram"}], [{"type": "box"}, None]])
 
-    # Adding traces to the subplots
+    # Adding traces to the subplots with neutral colors
     fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
-                             marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
-    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
-    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
+                             marker=dict(color='gray'), name='Fuel vs Price'), row=1, col=1)
+    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution', marker_color='lightgray'), row=1, col=2)
+    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission', marker_color='lightgray'), row=2, col=1)
 
     # Update layout for interactivity and aesthetics
     fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
 
     return fig
 
-# Function to plot model accuracy
-def plot_model_accuracy():
+# Function to visualize model performances
+def plot_model_accuracies():
     models = [
         "LinearRegression",
         "Ridge",
@@ -86,38 +86,33 @@ def plot_model_accuracy():
     ]
 
     accuracies = [
-        [0.38643429, 0.35310009, 0.36801071],
-        [0.38620243, 0.35350286, 0.36843282],
-        [0.38620616, 0.35349711, 0.36843277],
-        [0.33686675, 0.31415677, 0.32787848],
-        [0.62213917, 0.40638212, 0.47242902],
-        [0.74799343, 0.70412406, 0.70161075],
-        [0.73002938, 0.70887856, 0.70533151],
-        [-0.03261018, -0.05532926, -0.05188942],
-        [0.64170728, 0.63380643, 0.64356449],
-        [-0.38015855, -0.41194531, -0.41229902],
-        [0.0021934, -0.43429876, -0.28546934],
-        [0.72923447, 0.70932019, 0.67318744],
-        [0.74919345, 0.70561132, 0.68979889]
+        [0.38643429, 0.35310009, 0.36801071],  # LinearRegression
+        [0.38620243, 0.35350286, 0.36843282],  # Ridge
+        [0.38620616, 0.35349711, 0.36843277],  # Lasso
+        [0.33686675, 0.31415677, 0.32787848],  # ElasticNet
+        [0.62213917, 0.40638212, 0.47242902],  # DecisionTreeRegressor
+        [0.74799343, 0.70412406, 0.70161075],  # RandomForestRegressor
+        [0.73002938, 0.70887856, 0.70533151],  # GradientBoostingRegressor
+        [-0.03261018, -0.05532926, -0.05188942],  # SVR
+        [0.64170728, 0.63380643, 0.64356449],  # KNeighborsRegressor
+        [-0.38015855, -0.41194531, -0.41229902],  # MLPRegressor
+        [0.0021934, -0.43429876, -0.28546934],  # AdaBoostRegressor
+        [0.72923447, 0.70932019, 0.67318744],  # BaggingRegressor
+        [0.74919345, 0.70561132, 0.68979889]   # ExtraTreesRegressor
     ]
 
-    avg_accuracies = [sum(acc) / len(acc) for acc in accuracies]
+    # Calculate mean accuracies
+    mean_accuracies = [sum(acc) / len(acc) for acc in accuracies]
 
-    # Create a DataFrame for plotting
-    accuracy_df = pd.DataFrame({
-        'Model': models,
-        'Average Accuracy': avg_accuracies
-    })
+    # Create a bar chart for model accuracies
+    fig = px.bar(x=models, y=mean_accuracies, 
+                 title='Model Accuracies', 
+                 labels={'x': 'Model', 'y': 'Mean Accuracy'},
+                 color='mean_accuracy',
+                 color_continuous_scale=px.colors.sequential.Blues)
 
-    # Bar chart for model accuracies
-    fig = px.bar(accuracy_df, x='Model', y='Average Accuracy',
-                 title='Model Accuracy Comparison',
-                 labels={'Average Accuracy': 'Average Accuracy'},
-                 color='Average Accuracy',
-                 color_continuous_scale=px.colors.sequential.Gray)  # Neutral colors
+    fig.update_layout(yaxis_range=[-0.5, 1], height=400, width=800)
 
-    fig.update_layout(xaxis_title='Model', yaxis_title='Average Accuracy', xaxis_tickangle=-45)
-    
     return fig
 
 # Main Streamlit app
@@ -169,33 +164,24 @@ def main():
             prediction = st.session_state.model.predict(input_df)
 
             # Styled prediction display
-            st.markdown(f"""
-                <div style="font-size: 24px; padding: 10px; border: 1px solid #4CAF50; 
-                border-radius: 5px; background-color: #f0f4c3; color: #2e7d32;">
-                Predicted Price: <strong>${prediction[0]:,.2f}</strong>
-                </div>
-            """, unsafe_allow_html=True)
-
+            st.markdown(f"### Predicted Price: **${prediction[0]:,.2f}**")
         except Exception as e:
             st.error(f"Error making prediction: {str(e)}")
 
-    # Plot model accuracy
-    st.subheader("Model Accuracy Comparison")
-    accuracy_fig = plot_model_accuracy()
+    # Load and display the dataset (replace with actual dataset link)
+    df = pd.read_csv('your_dataset.csv')  # Replace with your actual dataset path
+    st.write("### Vehicle Price Dataset Preview")
+    st.dataframe(df.head())
+
+    # Create and display the dashboard
+    dashboard_fig = create_dashboard(df)
+    st.plotly_chart(dashboard_fig)
+
+    # Display model accuracy plot
+    accuracy_fig = plot_model_accuracies()
     st.plotly_chart(accuracy_fig)
 
-    # Upload CSV for visualization
-    uploaded_file = st.file_uploader("Upload a CSV file with vehicle data for visualization 📊", type=["csv"])
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-
-            # Generate and display dashboard
-            dashboard_fig = create_dashboard(df)
-            st.plotly_chart(dashboard_fig)
-
-        except Exception as e:
-            st.error(f"Error processing file: {str(e)}")
-
+# Run the app
 if __name__ == "__main__":
     main()
+
