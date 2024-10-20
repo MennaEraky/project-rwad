@@ -3,11 +3,9 @@ import pandas as pd
 import pickle
 import gdown
 import plotly.express as px
-import plotly.graph_objects as go
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-from plotly.subplots import make_subplots
 from sklearn.ensemble import RandomForestRegressor
 
 # Function to download and load the model using gdown
@@ -37,6 +35,10 @@ def preprocess_input(data, model):
 
 # Function to preprocess uploaded dataset
 def preprocess_uploaded_data(df, model):
+    # Convert columns with mixed types to numeric if applicable
+    for col in ['Engine', 'Kilometres', 'CylindersinEngine', 'FuelConsumption']:
+        df[col] = pd.to_numeric(df[col].str.extract('(\d+\.?\d*)')[0], errors='coerce')
+
     df_encoded = pd.get_dummies(df, columns=['UsedOrNew', 'Transmission', 'DriveType', 'FuelType', 'BodyType'], drop_first=True)
     model_columns = model.feature_names_in_
     missing_cols = set(model_columns) - set(df_encoded.columns)
@@ -47,63 +49,6 @@ def preprocess_uploaded_data(df, model):
     df_encoded = df_encoded[model_columns]
     
     return df_encoded
-
-# Create a function to generate plots
-def create_dashboard(df):
-    scatter = px.scatter(df, x='FuelConsumption', y='Price', color='FuelType',
-                         title='Fuel Consumption vs Price', 
-                         labels={'FuelConsumption': 'Fuel Consumption (L/100km)', 'Price': 'Price ($)'})
-
-    histogram = px.histogram(df, x='Price', nbins=30, 
-                             title='Distribution of Vehicle Prices', 
-                             labels={'Price': 'Price ($)'})
-
-    box = px.box(df, x='Transmission', y='Price', 
-                 title='Price Distribution by Transmission Type', 
-                 labels={'Transmission': 'Transmission Type', 'Price': 'Price ($)'})
-
-    fig = make_subplots(rows=2, cols=2, subplot_titles=('Fuel Consumption vs Price', 'Price Distribution', 'Price by Transmission'),
-                        specs=[[{"type": "scatter"}, {"type": "histogram"}], [{"type": "box"}, None]])
-
-    fig.add_trace(go.Scatter(x=df['FuelConsumption'], y=df['Price'], mode='markers',
-                             marker=dict(color=df['FuelType'].apply(lambda x: 'blue' if x == 'Petrol' else 'red')), name='Fuel vs Price'), row=1, col=1)
-    fig.add_trace(go.Histogram(x=df['Price'], nbinsx=30, name='Price Distribution'), row=1, col=2)
-    fig.add_trace(go.Box(y=df['Price'], x=df['Transmission'], name='Price by Transmission'), row=2, col=1)
-
-    fig.update_layout(height=800, width=1200, title_text="Vehicle Prices Dashboard", showlegend=False)
-
-    return fig
-
-# Function to create additional visualizations
-def create_additional_visualizations(df):
-    # Correlation Heatmap
-    st.subheader("Correlation Heatmap")
-    corr_matrix = df.corr()
-    plt.figure(figsize=(12, 12))
-    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', linewidths=.5, vmin=-1, vmax=1)
-    st.pyplot(plt)
-
-    # Box plots for numerical columns
-    numerical_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    for col in numerical_cols:
-        fig = px.box(df, y=col, title=f'Box Plot for {col}')
-        st.plotly_chart(fig)
-
-    # Example Model Results for comparison (Replace this with your actual model results)
-    results = {
-        'Model A': [0.8, 0.85, 0.82],
-        'Model B': [0.75, 0.78, 0.76],
-        'Model C': [0.88, 0.86, 0.87]
-    }
-    model_names = list(results.keys())
-    average_scores = [np.mean(scores) for scores in results.values()]
-
-    plt.figure(figsize=(10, 6))
-    plt.barh(model_names, average_scores, color='skyblue')
-    plt.xlabel('Average Cross-Validation Score')
-    plt.title('Comparison of Regression Algorithms')
-    plt.gca().invert_yaxis()
-    st.pyplot(plt)
 
 # Main Streamlit app
 def main():
@@ -158,67 +103,46 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
 
-            # Feature importance
-            st.subheader("Feature Importance")
-            feature_importance = pd.DataFrame({
-                'feature': st.session_state.model.feature_names_in_,
-                'importance': st.session_state.model.feature_importances_
-            }).sort_values('importance', ascending=False).head(10)
-
-            fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig)
-
             # Displaying input data and prediction as a table
             st.subheader("Input Data and Prediction")
             input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
             st.write(pd.DataFrame([input_data]).T, header=None)
 
-            # Dashboard
-            st.subheader("Vehicle Prices Dashboard")
-            dashboard_fig = create_dashboard(pd.read_csv('your_vehicle_data.csv'))  # Update with your vehicle data source
-            st.plotly_chart(dashboard_fig)
-
-            # Additional visualizations
+            # Dashboard and additional visualizations
             st.markdown("---")
-            st.subheader("Additional Visualizations")
-            create_additional_visualizations(pd.read_csv('your_vehicle_data.csv'))  # Update with your vehicle data source
+            st.header("📊 Upload Your Vehicle Data for Visualization")
+            uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
-        except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
+            if uploaded_file is not None:
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    st.success("Data loaded successfully!")
 
-    # Data Upload Section
-    st.markdown("---")
-    st.header("📊 Upload Your Vehicle Data for Visualization")
-    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+                    # Inspect the uploaded data
+                    st.write("### Uploaded Data Preview")
+                    st.write(df.head())  # Show the first few rows of the uploaded data
 
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            st.success("Data loaded successfully!")
+                    # Preprocess the uploaded data
+                    df_encoded = preprocess_uploaded_data(df, st.session_state.model)
 
-            # Preprocess the uploaded data
-            df_encoded = preprocess_uploaded_data(df, st.session_state.model)
+                    # Make predictions on the preprocessed data
+                    predictions = st.session_state.model.predict(df_encoded)
 
-            # Make predictions on the preprocessed data
-            predictions = st.session_state.model.predict(df_encoded)
+                    # Add predictions to the dataframe
+                    df['Predicted Price'] = predictions
 
-            # Add predictions to the dataframe
-            df['Predicted Price'] = predictions
+                    # Create and display the dashboard
+                    st.subheader("Vehicle Prices Dashboard")
+                    dashboard_fig = create_dashboard(df)
+                    st.plotly_chart(dashboard_fig)
 
-            # Create and display the dashboard
-            st.subheader("Vehicle Prices Dashboard")
-            dashboard_fig = create_dashboard(df)
-            st.plotly_chart(dashboard_fig)
+                    # Create additional visualizations
+                    st.markdown("---")
+                    st.subheader("Additional Visualizations")
+                    create_additional_visualizations(df)
 
-            # Create additional visualizations
-            st.markdown("---")
-            st.subheader("Additional Visualizations")
-            create_additional_visualizations(df)
-
-        except Exception as e:
-            st.error(f"Error loading data: {str(e)}")
+                except Exception as e:
+                    st.error(f"Error loading data: {str(e)}")
 
 if __name__ == "__main__":
     main()
