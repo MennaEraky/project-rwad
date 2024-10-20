@@ -164,7 +164,7 @@ def main():
 
     # Load dataset for dashboard
     try:
-        df = pd.read_csv('vehicle_data.csv')  # Update with your dataset path
+        df = pd.read_csv('Australian Vehicle Prices.csv')  # Update with your dataset path
         fig = create_dashboard(df)
         st.plotly_chart(fig)
     except Exception as e:
