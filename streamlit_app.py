@@ -118,11 +118,13 @@ def create_dashboard(df):
     return fig
 
 # Main Streamlit app
+# Main Streamlit app
 def main():
     st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
 
+    # Input columns
     col1, col2 = st.columns(2)
 
     with col1:
@@ -163,12 +165,16 @@ def main():
             st.success(f"The predicted price of the vehicle is: ${predicted_price[0]:,.2f}")
 
     # Load dataset for dashboard
-    try:
-        df = pd.read_csv('Australian Vehicle Prices.csv')  # Update with your dataset path
-        fig = create_dashboard(df)
-        st.plotly_chart(fig)
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
+    uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)  # Use the uploaded file
+            fig = create_dashboard(df)
+            st.plotly_chart(fig)
+        except Exception as e:
+            st.error(f"Error loading data: {str(e)}")
+    else:
+        st.info("Please upload a CSV file to visualize the data.")
 
 if __name__ == "__main__":
     main()
