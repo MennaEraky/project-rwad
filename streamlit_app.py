@@ -16,8 +16,22 @@ def load_model_from_drive(file_id):
 def preprocess_input(input_data, model):
     # Convert input data to DataFrame
     input_df = pd.DataFrame([input_data])
-    # Perform any necessary preprocessing steps (e.g., encoding, scaling)
-    return input_df  # Modify this based on your preprocessing needs
+    
+    # One-hot encode categorical features
+    input_df_encoded = pd.get_dummies(input_df, columns=['UsedOrNew', 'Transmission', 'DriveType', 'FuelType', 'BodyType'], drop_first=True)
+    
+    # Ensure all necessary columns for the model are present
+    model_columns = model.feature_names_in_  # Get feature names from the model
+    missing_cols = set(model_columns) - set(input_df_encoded.columns)
+
+    # Add missing columns with 0 values
+    for col in missing_cols:
+        input_df_encoded[col] = 0
+    
+    # Reorder columns to match model's input
+    input_df_encoded = input_df_encoded[model_columns]
+    
+    return input_df_encoded  # Modify this based on your preprocessing needs
 
 # Function to create the main dashboard visualization
 def create_dashboard(df):
@@ -27,7 +41,7 @@ def create_dashboard(df):
                      labels={'Kilometres': 'Kilometres Driven', 'Price': 'Price'})
     return fig
 
-# Create a function to generate additional visualizations
+# Function to generate additional visualizations
 def create_additional_visualizations(df, results):
     # Correlation heatmap
     corr_matrix = df.corr()
