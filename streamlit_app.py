@@ -67,35 +67,57 @@ def create_dashboard(df):
 
     return fig
 
-# Create a function for the models accuracy graph
+# Function to plot model accuracy
 def plot_model_accuracy():
-    # Model names and their corresponding accuracy values
-    models = {
-        "Linear Regression": [0.38643429, 0.35310009, 0.36801071],
-        "Ridge": [0.38620243, 0.35350286, 0.36843282],
-        "Lasso": [0.38620616, 0.35349711, 0.36843277],
-        "ElasticNet": [0.33686675, 0.31415677, 0.32787848],
-        "Decision Tree": [0.62213917, 0.40638212, 0.47242902],
-        "Random Forest": [0.74799343, 0.70412406, 0.70161075],
-        "Gradient Boosting": [0.73002938, 0.70887856, 0.70533151],
-        "SVR": [-0.03261018, -0.05532926, -0.05188942],
-        "KNeighbors": [0.64170728, 0.63380643, 0.64356449],
-        "MLP": [-0.38015855, -0.41194531, -0.41229902],
-        "AdaBoost": [0.0021934, -0.43429876, -0.28546934],
-        "Bagging": [0.72923447, 0.70932019, 0.67318744],
-        "Extra Trees": [0.74919345, 0.70561132, 0.68979889]
-    }
+    models = [
+        "LinearRegression",
+        "Ridge",
+        "Lasso",
+        "ElasticNet",
+        "DecisionTreeRegressor",
+        "RandomForestRegressor",
+        "GradientBoostingRegressor",
+        "SVR",
+        "KNeighborsRegressor",
+        "MLPRegressor",
+        "AdaBoostRegressor",
+        "BaggingRegressor",
+        "ExtraTreesRegressor"
+    ]
 
-    # Calculate average accuracy for each model
-    average_accuracies = {model: sum(accuracy) / len(accuracy) for model, accuracy in models.items()}
+    accuracies = [
+        [0.38643429, 0.35310009, 0.36801071],
+        [0.38620243, 0.35350286, 0.36843282],
+        [0.38620616, 0.35349711, 0.36843277],
+        [0.33686675, 0.31415677, 0.32787848],
+        [0.62213917, 0.40638212, 0.47242902],
+        [0.74799343, 0.70412406, 0.70161075],
+        [0.73002938, 0.70887856, 0.70533151],
+        [-0.03261018, -0.05532926, -0.05188942],
+        [0.64170728, 0.63380643, 0.64356449],
+        [-0.38015855, -0.41194531, -0.41229902],
+        [0.0021934, -0.43429876, -0.28546934],
+        [0.72923447, 0.70932019, 0.67318744],
+        [0.74919345, 0.70561132, 0.68979889]
+    ]
+
+    avg_accuracies = [sum(acc) / len(acc) for acc in accuracies]
 
     # Create a DataFrame for plotting
-    accuracy_df = pd.DataFrame(list(average_accuracies.items()), columns=["Model", "Average Accuracy"])
+    accuracy_df = pd.DataFrame({
+        'Model': models,
+        'Average Accuracy': avg_accuracies
+    })
+
+    # Bar chart for model accuracies
+    fig = px.bar(accuracy_df, x='Model', y='Average Accuracy',
+                 title='Model Accuracy Comparison',
+                 labels={'Average Accuracy': 'Average Accuracy'},
+                 color='Average Accuracy',
+                 color_continuous_scale=px.colors.sequential.Viridis)
+
+    fig.update_layout(xaxis_title='Model', yaxis_title='Average Accuracy', xaxis_tickangle=-45)
     
-    # Plotting the average accuracy
-    fig = px.bar(accuracy_df, x='Model', y='Average Accuracy', title='Model Accuracies',
-                 labels={'Average Accuracy': 'Average Accuracy', 'Model': 'Regression Model'})
-    fig.update_layout(xaxis_tickangle=-45, height=600)
     return fig
 
 # Main Streamlit app
@@ -148,29 +170,32 @@ def main():
 
             # Styled prediction display
             st.markdown(f"""
-                <div style="font-size: 24px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
-                    The predicted price of the vehicle is <span style="color: green;">${prediction[0]:,.2f}</span>
+                <div style="font-size: 24px; padding: 10px; border: 1px solid #4CAF50; 
+                border-radius: 5px; background-color: #f0f4c3; color: #2e7d32;">
+                Predicted Price: <strong>${prediction[0]:,.2f}</strong>
                 </div>
             """, unsafe_allow_html=True)
+
         except Exception as e:
-            st.error(f"Error in prediction: {str(e)}")
+            st.error(f"Error making prediction: {str(e)}")
 
-    # Create and display dashboard
-    st.subheader("📊 Vehicle Prices Dashboard")
-    sample_data = {
-        'Price': [30000, 32000, 29000, 35000, 27000],
-        'FuelConsumption': [8, 7, 10, 6, 9],
-        'Transmission': ['Automatic', 'Manual', 'Automatic', 'Manual', 'Automatic'],
-        'FuelType': ['Petrol', 'Diesel', 'Petrol', 'Diesel', 'Petrol']
-    }
-    df = pd.DataFrame(sample_data)
-    fig_dashboard = create_dashboard(df)
-    st.plotly_chart(fig_dashboard)
+    # Upload CSV for visualization
+    uploaded_file = st.file_uploader("Upload a CSV file with vehicle data for visualization 📊", type=["csv"])
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
 
-    # Display model accuracy graph
-    st.subheader("📈 Model Accuracy Comparison")
-    fig_accuracy = plot_model_accuracy()
-    st.plotly_chart(fig_accuracy)
+            # Generate and display dashboard
+            dashboard_fig = create_dashboard(df)
+            st.plotly_chart(dashboard_fig)
+
+        except Exception as e:
+            st.error(f"Error processing file: {str(e)}")
+
+    # Plot model accuracy
+    st.subheader("Model Accuracy Comparison")
+    accuracy_fig = plot_model_accuracy()
+    st.plotly_chart(accuracy_fig)
 
 if __name__ == "__main__":
     main()
