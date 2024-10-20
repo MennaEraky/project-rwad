@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Ensure st.set_page_config is the first function called
+# تأكد من أن st.set_page_config هو أول دالة يتم استدعاؤها
 st.set_page_config(page_title="Vehicle Price Prediction", page_icon="🚗", layout="wide")
 
 # Custom CSS for better styling
@@ -49,7 +49,8 @@ def load_model_from_drive(file_id):
 def load_data_from_drive(file_id):
     url = f'https://drive.google.com/uc?id={file_id}'
     try:
-        df = pd.read_csv(url)  # Ensure this is a CSV; change to pd.read_excel if it's an Excel file
+        # Use on_bad_lines to skip problematic lines
+        df = pd.read_csv(url, on_bad_lines='skip')  # Adjust parameters as needed
         return df
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
@@ -59,7 +60,7 @@ def load_data_from_drive(file_id):
 def preprocess_input(data, model):
     input_df = pd.DataFrame(data, index=[0])
     input_df_encoded = pd.get_dummies(input_df, drop_first=True)
-
+    
     # Check the columns after encoding
     st.write("Encoded input columns:", input_df_encoded.columns.tolist())
 
@@ -71,11 +72,6 @@ def preprocess_input(data, model):
     # Display the processed input DataFrame
     st.write("Processed Input DataFrame:")
     st.dataframe(input_df_encoded)
-
-    # Return None if input_df_encoded is empty
-    if input_df_encoded.empty:
-        st.error("Processed input DataFrame is empty.")
-        return None
 
     return input_df_encoded
 
@@ -108,8 +104,8 @@ def main():
     st.write("Enter the vehicle details below to predict its price.")
 
     # Load data for visualization from Google Drive
-    dataset_file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for dataset
-    df = load_data_from_drive(dataset_file_id)
+    file_id = '1BMO9pcLUsx970KDTw1kHNkXg2ghGJVBs'  # Google Drive file ID for data
+    df = load_data_from_drive(file_id)
 
     col1, col2 = st.columns(2)
 
@@ -150,39 +146,36 @@ def main():
         }
         input_df = preprocess_input(input_data, st.session_state.model)
 
-        if input_df is not None:  # Ensure the input DataFrame is valid
-            try:
-                prediction = st.session_state.model.predict(input_df)
-                st.markdown(f"<div class='prediction-box'>Predicted Price: ${prediction[0]:,.2f}</div>", unsafe_allow_html=True)
+        try:
+            prediction = st.session_state.model.predict(input_df)
+            st.markdown(f"<div class='prediction-box'>Predicted Price: ${prediction[0]:,.2f}</div>", unsafe_allow_html=True)
 
-                # Feature importance
-                st.subheader("Feature Importance")
-                feature_importance = pd.DataFrame({
-                    'feature': st.session_state.model.feature_names_in_,
-                    'importance': st.session_state.model.feature_importances_
-                }).sort_values('importance', ascending=False).head(10)
+            # Feature importance
+            st.subheader("Feature Importance")
+            feature_importance = pd.DataFrame({
+                'feature': st.session_state.model.feature_names_in_,
+                'importance': st.session_state.model.feature_importances_
+            }).sort_values('importance', ascending=False).head(10)
 
-                # Plotting feature importance using plotly
-                fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
-                             title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
-                fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-                st.plotly_chart(fig)
+            # Plotting feature importance using plotly
+            fig = px.bar(feature_importance, x='importance', y='feature', orientation='h',
+                         title='Top 10 Important Features', labels={'importance': 'Importance', 'feature': 'Feature'})
+            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
+            st.plotly_chart(fig)
 
-                # Displaying input data and prediction as a table
-                st.subheader("Input Data and Prediction")
-                input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
-                input_df_display = pd.DataFrame(input_data, index=[0])
-                st.dataframe(input_df_display)
+            # Displaying input data and prediction as a table
+            st.subheader("Input Data and Prediction")
+            input_data['Predicted Price'] = f"${prediction[0]:,.2f}"
+            input_df_display = pd.DataFrame(input_data, index=[0])
+            st.dataframe(input_df_display)
 
-                # Create and display the dashboard
-                st.subheader("Vehicle Prices Dashboard")
-                dashboard_fig = create_dashboard(df)
-                st.plotly_chart(dashboard_fig)
+            # Create and display the dashboard
+            st.subheader("Vehicle Prices Dashboard")
+            dashboard_fig = create_dashboard(df)
+            st.plotly_chart(dashboard_fig)
 
-            except Exception as e:
-                st.error(f"Error making prediction: {str(e)}")
-        else:
-            st.error("Invalid input data for prediction.")
+        except Exception as e:
+            st.error(f"Error making prediction: {str(e)}")
     else:
         st.error("Failed to load the model.")
 
